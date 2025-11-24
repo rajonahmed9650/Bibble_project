@@ -11,6 +11,8 @@ https://docs.djangoproject.com/en/5.2/ref/settings/
 """
 
 from pathlib import Path
+import os
+from dotenv import load_dotenv
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -39,6 +41,7 @@ INSTALLED_APPS = [
     'django.contrib.staticfiles',
     'rest_framework',
     'accounts',
+    'payments',
 ]
 
 AUTH_USER_MODEL = "accounts.User"
@@ -121,6 +124,9 @@ USE_TZ = True
 # https://docs.djangoproject.com/en/5.2/howto/static-files/
 
 STATIC_URL = 'static/'
+MEDIA_URL = "/media/"
+MEDIA_ROOT = BASE_DIR / "media"
+
 
 # Default primary key field type
 # https://docs.djangoproject.com/en/5.2/ref/settings/#default-auto-field
@@ -131,13 +137,36 @@ DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
 REST_FRAMEWORK = {
     "DEFAULT_AUTHENTICATION_CLASSES": [
-        "rest_framework_simplejwt.authentication.JWTAuthentication",
+        "rest_framework.authentication.BasicAuthentication",
+        "accounts.authentication.CustomJWTAuthentication",
+        "rest_framework.authentication.SessionAuthentication",
+    ],
+    "DEFAULT_PERMISSION_CLASSES": [
+        "rest_framework.permissions.AllowAny",
     ]
 }
 
+
+
 AUTHENTICATION_BACKENDS = [
-    'accounts.backends.CustomAuthBackend',
+   
+    "django.contrib.auth.backends.ModelBackend", 
 ]
+
+BASE_DIR = Path(__file__).resolve().parent.parent
+
+# Load environment variables
+load_dotenv(os.path.join(BASE_DIR, ".env"))
+
+
+STRIPE_SECRET_KEY = os.getenv("STRIPE_SECRET_KEY")
+STRIPE_PUBLISHABLE_KEY =os.getenv("STRIPE_PUBLISHABLE_KEY")
+STRIPE_MONTHLY_PRICE = os.getenv("STRIPE_MONTHLY_PRICE")
+STRIPE_YEARLY_PRICE = os.getenv("STRIPE_YEARLY_PRICE")
+STRIPE_WEBHOOK_SECRET = os.getenv("STRIPE_WEBHOOK_SECRET")
+
+
+
 
 
 EMAIL_BACKEND = "django.core.mail.backends.smtp.EmailBackend"
@@ -145,7 +174,7 @@ EMAIL_HOST = "smtp.gmail.com"
 EMAIL_PORT = 587
 EMAIL_USE_TLS = True
 
-EMAIL_HOST_USER = "rajonahned50@gmail.com"      
-EMAIL_HOST_PASSWORD = "toql ibtk esxk ssqu"   
+EMAIL_HOST_USER = os.getenv("EMAIL_HOST_USER")  
+EMAIL_HOST_PASSWORD =os.getenv("EMAIL_HOST_PASSWORD")   
 
 DEFAULT_FROM_EMAIL = EMAIL_HOST_USER

@@ -22,7 +22,7 @@ def get_otp_cache(email):
     return cache.get(f"otp_{email}")
 
 def delete_otp_cache(email):
-    cache.delete(f"opt_{email}")    
+    cache.delete(f"otp_{email}")    
 
 
 def create_jwt_token_for_user(user_id,days_vaild=7):

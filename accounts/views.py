@@ -5,6 +5,7 @@ from rest_framework import status
 from django.utils import timezone
 from datetime import timedelta
 from django.contrib.auth.hashers import make_password , check_password
+from payments.models import Subscription
 from .models import User , Social_login ,OTP
 from .serializers import*
 from django.db.models import Q
@@ -16,11 +17,11 @@ from google.oauth2 import id_token as google_id_token
 import jwt as pyjwt
 
 from .utils import generate_otp_code ,save_session,create_jwt_token_for_user,save_otp_cache,delete_otp_cache,get_otp_cache,send_otp_code
+from django.views.decorators.csrf import csrf_exempt
+from django.utils.decorators import method_decorator
 
 
-
-
-
+@method_decorator(csrf_exempt, name="dispatch")
 class SignupView(APIView):
     def post(self, request):
         ser = SignupSerializer(data=request.data)
@@ -32,69 +33,72 @@ class SignupView(APIView):
         username = data["username"]
         password = data["password"]
 
-        
+        # Check duplicates
         if User.objects.filter(email=email).exists():
             return Response({"error": "Email already exists"}, status=400)
         if User.objects.filter(phone=phone).exists():
             return Response({"error": "Phone already exists"}, status=400)
-        if User.objects.filter(username=username).exists():
-            return Response({"error": "Username already exists"}, status=400)
 
-      
-        temp_user_data = {
-            "username": username,
-            "email": email,
-            "phone": phone,
-            "password": password
-        }
-        save_otp_cache(email + "_signup", temp_user_data)
+        # Create user directly (NO OTP)
+        user = User.objects.create_user(
+            username=username,
+            email=email,
+            phone=phone,
+            password=password
+        )
 
-    
-        otp = generate_otp_code()
-        save_otp_cache(email + "_otp", otp)
+        # Create social login record
+        Social_login.objects.create(
+            user=user,
+            provider="email",
+            provider_id=email,
+            password=make_password(password)
+        )
 
-     
-        save_otp_cache(email + "_type", "register")   
+  
+        Subscription.objects.create(
+            user=user,
+            current_plan="trial",
+            trial_end=timezone.now() + timedelta(days=7),
+            is_active=True
+        )
 
-       
-        send_otp_code(email, otp)
+        # Create JWT token immediately
+        token, expire = create_jwt_token_for_user(user.id)
+        save_session(user, token, expire)
 
-        return Response({"status": "otp_sent"})
+        return Response({
+            "message": "User created successfully",
+            "status": "success",
+            "user": {
+                "id": user.id,
+                "username": user.username,
+                "email": user.email,
+                "phone": user.phone
+            },
+            # "token": token,
+            "expire_at": expire
+        }, status=201)
+
+class ProfileView(APIView):
+    authentication_classes = [CustomJWTAuthentication]
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        profile, created = Profile.objects.get_or_create(user=request.user)
+        serializer = ProfileSerializer(profile, context={"request": request})
+        return Response(serializer.data)
+
+    def put(self, request):
+        profile, created = Profile.objects.get_or_create(user=request.user)
+        serializer = ProfileSerializer(profile, data=request.data, context={"request": request})
+        serializer.is_valid(raise_exception=True)
+        serializer.save()
+        return Response(serializer.data)
 
 
 
 
-# class OTPRequestView(APIView):
-#     def post(self,request):
-#         ser = OTPRequestSerializer(data =request.data)
-#         ser.is_valid(raise_exception=True)
-#         data = ser.validated_data
-#         email = data.get("email")
-#         otp_type = data.get("type")
-
-#         if not email:
-#             return Response({"error":"Email required"},status=status.HTTP_400_BAD_REQUEST)
-#         user = User.objects.filter(email=email).first()
-#         if not user:
-#             return Response({"error":"User not found"},status=status.HTTP_400_BAD_REQUEST)
-        
-
-#         if otp_type == "forgot_password":
-#             social = getattr(user,"social_login",None)
-#             if not social or social.provider != "email":
-#                 return Response({"error":"Password reset only for email users"},status=status.HTTP_400_BAD_REQUEST)
-            
-#             otp = generate_otp_code()
-
-#             save_otp_cache(email,otp)
-
-#             send_otp_code(email,otp)
-            
-#             return Response({
-#                 "status":"opt_sent",
-#                 "otp":otp
-#             })
-        
 
 class OTPVerifiyView(APIView):
     def post(self, request):
@@ -188,27 +192,7 @@ class LoginView(APIView):
         ser.is_valid(raise_exception=True)
         data = ser.validated_data
 
-        # -----------------------------------------
-        # GOOGLE LOGIN
-        # -----------------------------------------
-        # if data.get("google_token"):
-        #     token = data["google_token"]
-        #     try:
-        #         idinfo = google_id_token.verify_oauth2_token(
-        #             token, google_requests.Request()
-        #         )
-        #         sub = idinfo["sub"]
-        #     except Exception as e:
-        #         return Response({"error": "Invalid Google token", "details": str(e)}, status=400)
 
-        #     social = Social_login.objects.filter(provider="google", provider_id=sub).first()
-        #     if not social:
-        #         return Response({"error": "Google user not registered"}, status=400)
-
-        #     user = social.user
-        #     token_jwt, expire = create_jwt_token_for_user(user.id)
-        #     save_session(user, token_jwt, expire)
-        #     return Response({"token": token_jwt})
         if data.get("google_token"):
             token = data["google_token"]
             try:
@@ -248,26 +232,6 @@ class LoginView(APIView):
         
 
 
-        # -----------------------------------------
-        # APPLE LOGIN
-        # -----------------------------------------
-        # if data.get("apple_token"):
-        #     token = data["apple_token"]
-        #     try:
-        #         decode = pyjwt.decode(token, options={"verify_signature": False})
-        #         sub = decode["sub"]
-        #     except Exception as e:
-        #         return Response({"error": "Invalid Apple token", "details": str(e)}, status=400)
-
-        #     social = Social_login.objects.filter(provider="apple", provider_id=sub).first()
-        #     if not social:
-        #         return Response({"error": "Apple user not registered"}, status=400)
-
-        #     user = social.user
-        #     token_jwt, expire = create_jwt_token_for_user(user.id)
-        #     save_session(user, token_jwt, expire)
-        #     return Response({"token": token_jwt})
-        
 
 
         if data.get("apple_token"):
@@ -426,45 +390,7 @@ class ForgotPasswordView(APIView):
 
     
 
-# class ResetPasswordView(APIView):
-#     def post(self, request):
-#         ser = ResetPasswordSerializer(data=request.data)
-#         ser.is_valid(raise_exception=True)
-#         data = ser.validated_data
 
-#         email = data["email"]
-#         new_password = data["new_password"]
-
-#         user = User.objects.filter(email=email).first()
-#         if not user:
-#             return Response({"error": "User not found"}, status=400)
-
-#         identity = Social_login.objects.filter(user=user, provider="email").first()
-#         identity.password = make_password(new_password)
-#         identity.save()
-
-#         return Response({"status": "password_reset_success"})    
-
-
-
-# class ResetPasswordView(APIView):
-#     def post(self,request):
-#         ser = ResetPasswordSerializer(data = request.data)
-#         ser.is_valid(raise_exception=True)
-#         data = ser.validated_data
-
-#         email = data["email"]
-#         new_password = data["new_password"]
-
-#         user = User.objects.filter(email=email).first()
-#         if not user:
-#             return Response({"error":"User not found"},status=status.HTTP_400_BAD_REQUEST)
-        
-#         identity = Social_login.objects.filter(user=user,provider = "email").first()
-#         identity.password = make_password(new_password)
-#         identity.save()
-
-#         return Response({"status":"Passowrd reset success"})
     
 class ChangePasswordView(APIView):
     authentication_classes = [CustomJWTAuthentication]
@@ -491,3 +417,24 @@ class ChangePasswordView(APIView):
         identity.save()
 
         return Response({"status": "password_changed"})
+    
+
+
+
+
+    from rest_framework.permissions import IsAuthenticated
+from .models import Sessions
+
+class LogoutView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request):
+        token = request.auth  # current JWT
+
+        if not token:
+            return Response({"error": "No token found"}, status=400)
+
+        # Remove session from database
+        Sessions.objects.filter(token=token).delete()
+
+        return Response({"status": "logged_out"})

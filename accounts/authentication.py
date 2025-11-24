@@ -13,6 +13,7 @@ class CustomJWTAuthentication(BaseAuthentication):
         if not auth_header:
             return None
         
+        # Expect: "Bearer <token>"
         try:
             prefix, token = auth_header.split(" ")
         except:
@@ -35,8 +36,10 @@ class CustomJWTAuthentication(BaseAuthentication):
         if not user:
             raise AuthenticationFailed("User not found")
 
-        # Check session token exists
-        if not Sessions.objects.filter(user=user, token=token).exists():
+        # Check session token exists in DB
+        session_exists = Sessions.objects.filter(user=user, token=token).exists()
+        if not session_exists:
             raise AuthenticationFailed("Session expired or invalid")
 
-        return (user, None)
+        # The token MUST be returned as second object (important for logout!)
+        return (user, token)
