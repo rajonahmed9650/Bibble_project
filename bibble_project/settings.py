@@ -27,7 +27,7 @@ SECRET_KEY = 'django-insecure-^_ew)$#_y+o_i6cx@_=tqc&2_r=s*z%=du3w@f65eyl@95%=4b
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-ALLOWED_HOSTS = []
+ALLOWED_HOSTS = ["*"]
 
 
 # Application definition
@@ -178,3 +178,6 @@ EMAIL_HOST_USER = os.getenv("EMAIL_HOST_USER")
 EMAIL_HOST_PASSWORD =os.getenv("EMAIL_HOST_PASSWORD")   
 
 DEFAULT_FROM_EMAIL = EMAIL_HOST_USER
+
+
+CSRF_TRUSTED_ORIGINS = ["https://thymiest-layton-doctrinally.ngrok-free.dev"]

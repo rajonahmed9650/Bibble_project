@@ -1,11 +1,9 @@
 from django.db import models
 from django.utils import timezone
-# Create your models here.
-from django.contrib.auth import get_user_model
-User = get_user_model()
+from django.conf import settings
 
 class Subscription(models.Model):
-    user = models.ForeignKey(User, on_delete=models.CASCADE)
+    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE)
     stripe_customer_id = models.CharField(max_length=200, null=True, blank=True)
     stripe_subscription_id = models.CharField(max_length=200, null=True, blank=True)
 
@@ -20,11 +18,5 @@ class Subscription(models.Model):
     is_active = models.BooleanField(default=False)
 
     created_at = models.DateTimeField(auto_now_add=True)
-
-    def has_active_trial(self):
-        return self.current_plan == "trial" and self.trial_end and timezone.now() < self.trial_end
-
-
-
 
 

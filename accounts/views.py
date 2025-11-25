@@ -10,7 +10,7 @@ from .models import User , Social_login ,OTP
 from .serializers import*
 from django.db.models import Q
 from accounts.authentication import CustomJWTAuthentication
-from rest_framework.permissions import IsAuthenticated
+from rest_framework.permissions import IsAuthenticated,AllowAny
 
 from google.auth.transport import requests as google_requests
 from google.oauth2 import id_token as google_id_token
@@ -23,39 +23,29 @@ from django.utils.decorators import method_decorator
 
 @method_decorator(csrf_exempt, name="dispatch")
 class SignupView(APIView):
+    permission_classes = [AllowAny]
+
     def post(self, request):
         ser = SignupSerializer(data=request.data)
         ser.is_valid(raise_exception=True)
         data = ser.validated_data
 
-        email = data["email"]
-        phone = data["phone"]
-        username = data["username"]
-        password = data["password"]
-
-        # Check duplicates
-        if User.objects.filter(email=email).exists():
-            return Response({"error": "Email already exists"}, status=400)
-        if User.objects.filter(phone=phone).exists():
-            return Response({"error": "Phone already exists"}, status=400)
-
-        # Create user directly (NO OTP)
         user = User.objects.create_user(
-            username=username,
-            email=email,
-            phone=phone,
-            password=password
+            username=data["username"],
+            email=data["email"],
+            phone=data["phone"],
+            password=data["password"]
         )
 
-        # Create social login record
+        # Social Login record
         Social_login.objects.create(
             user=user,
             provider="email",
-            provider_id=email,
-            password=make_password(password)
+            provider_id=user.email,
+            password=make_password(data["password"])
         )
 
-  
+        # FREE TRIAL CREATED HERE
         Subscription.objects.create(
             user=user,
             current_plan="trial",
@@ -63,22 +53,19 @@ class SignupView(APIView):
             is_active=True
         )
 
-        # Create JWT token immediately
         token, expire = create_jwt_token_for_user(user.id)
         save_session(user, token, expire)
 
         return Response({
-            "message": "User created successfully",
-            "status": "success",
-            "user": {
-                "id": user.id,
-                "username": user.username,
-                "email": user.email,
-                "phone": user.phone
-            },
-            # "token": token,
-            "expire_at": expire
-        }, status=201)
+            "message": "Signup success",
+            "trial": "7_days",
+            "user_id": user.id,
+            "token": token
+        })
+
+
+    
+
 
 class ProfileView(APIView):
     authentication_classes = [CustomJWTAuthentication]
@@ -186,122 +173,84 @@ class OTPVerifiyView(APIView):
 
 
 class LoginView(APIView):
-    def post(self, request):
+    permission_classes = [AllowAny]
 
+    def post(self, request):
         ser = LoginSerializer(data=request.data)
         ser.is_valid(raise_exception=True)
         data = ser.validated_data
 
+      
+        # GOOGLE LOGIN
 
         if data.get("google_token"):
-            token = data["google_token"]
             try:
                 idinfo = google_id_token.verify_oauth2_token(
-                    token, google_requests.Request()
+                    data["google_token"], google_requests.Request()
                 )
                 email = idinfo.get("email")
-                sub = idinfo["sub"]   # Google unique ID
+                google_uid = idinfo["sub"]
             except Exception as e:
-                return Response({"error": "Invalid Google token", "details": str(e)}, status=400)
+                return Response({"error": "Invalid Google token"}, status=400)
 
-    # AUTO CREATE USER IF NOT EXISTS
             user, created = User.objects.get_or_create(
                 email=email,
                 defaults={"username": email.split("@")[0]}
             )
 
-    # AUTO CREATE / UPDATE SOCIAL LOGIN RECORD
-            social, _ = Social_login.objects.update_or_create(
+            Social_login.objects.update_or_create(
                 user=user,
-                defaults={
-                    "provider": "google",
-                    "provider_id": sub
-                }
+                defaults={"provider": "google", "provider_id": google_uid}
             )
 
-    # AUTO LOGIN (Generate Token)
-            token_jwt, expire = create_jwt_token_for_user(user.id)
-            save_session(user, token_jwt, expire)
+            token, expire = create_jwt_token_for_user(user.id)
+            save_session(user, token, expire)
 
             return Response({
                 "status": "success",
-                "action": "google_login",
-                "auto_signup": created,   # True হলে user নতুন তৈরি হয়েছে
-                "token": token_jwt
+                "login_by": "google",
+                "token": token,
+                "plan_selection_needed": True
             })
-        
 
-
-
-
+      
+        # APPLE LOGIN
+    
         if data.get("apple_token"):
-            token = data["apple_token"]
             try:
-                decode = pyjwt.decode(token, options={"verify_signature": True})
-                email = decode.get("email")
-                sub = decode["sub"]   # Apple unique user ID
-            except Exception as e:
-                return Response({"error": "Invalid Apple token", "details": str(e)}, status=400)
+                decoded = pyjwt.decode(data["apple_token"], options={"verify_signature": False})
+                email = decoded.get("email")
+                apple_uid = decoded["sub"]
+            except Exception:
+                return Response({"error": "Invalid Apple token"}, status=400)
 
-    # AUTO CREATE USER IF NOT EXISTS
             user, created = User.objects.get_or_create(
                 email=email,
                 defaults={"username": email.split("@")[0]}
             )
 
-    # AUTO CREATE OR UPDATE SOCIAL LOGIN RECORD
-            social, _ = Social_login.objects.update_or_create(
+            Social_login.objects.update_or_create(
                 user=user,
-                defaults={
-                    "provider": "apple",
-                    "provider_id": sub
-                }
+                defaults={"provider": "apple", "provider_id": apple_uid}
             )
 
-    # LOGIN TOKEN
-            token_jwt, expire = create_jwt_token_for_user(user.id)
-            save_session(user, token_jwt, expire)
+            token, expire = create_jwt_token_for_user(user.id)
+            save_session(user, token, expire)
 
             return Response({
                 "status": "success",
-                "action": "apple_login",
-                "auto_signup": created,    # TRUE হলে নতুন user তৈরি হয়েছে
-                "token": token_jwt
+                "login_by": "apple",
+                "token": token,
+                "plan_selection_needed": True
             })
 
-        # -----------------------------------------
-        # OTP LOGIN
-        # -----------------------------------------
-        if data.get("otp") and data.get("login_id"):
-            email = data["login_id"]
-            otp = data["otp"]
 
-            saved_otp = get_otp_cache(email)
-            if not saved_otp:
-                return Response({"error": "OTP expired"}, status=400)
-
-            if saved_otp != otp:
-                return Response({"error": "Invalid OTP"}, status=400)
-
-            delete_otp_cache(email)
-
-            user = User.objects.filter(email=email).first()
-            if not user:
-                return Response({"error": "User not found"}, status=400)
-
-            token_jwt, expire = create_jwt_token_for_user(user.id)
-            save_session(user, token_jwt, expire)
-            return Response({"token": token_jwt})
-
-
-        # -----------------------------------------
-        # EMAIL / PHONE / USERNAME LOGIN (PASSWORD)
-        # -----------------------------------------
+        # EMAIL/PASSWORD LOGIN
+      
         login_id = data.get("login_id")
         password = data.get("password")
 
         if login_id and password:
-            # find user by username OR email OR phone
             try:
                 user = User.objects.get(
                     Q(email=login_id) |
@@ -313,18 +262,22 @@ class LoginView(APIView):
 
             social = Social_login.objects.filter(user=user, provider="email").first()
             if not social:
-                return Response({"error": "This user cannot login via password"}, status=400)
+                return Response({"error": "Password login not allowed"}, status=400)
 
             if not check_password(password, social.password):
                 return Response({"error": "Wrong password"}, status=400)
 
-            token_jwt, expire = create_jwt_token_for_user(user.id)
-            save_session(user, token_jwt, expire)
-            return Response({"token": token_jwt})
+            token, expire = create_jwt_token_for_user(user.id)
+            save_session(user, token, expire)
 
+            return Response({
+                "status": "success",
+                "login_by": "email",
+                "token": token,
+                "plan_selection_needed": True
+            })
 
         return Response({"error": "Invalid request"}, status=400)
-
 
 class ResetPasswordView(APIView):
     def post(self, request):

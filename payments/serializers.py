@@ -1,7 +1,8 @@
-from .models import Subscription
 from rest_framework import serializers
 
 class CreateSubscriptionSerializer(serializers.Serializer):
-    plan = serializers.ChoiceField(choices=["monthly", "yearly"])
+    # allowed: "trial", "monthly", "yearly"
+    plan = serializers.ChoiceField(choices=["trial", "monthly", "yearly"])
+
 
 
