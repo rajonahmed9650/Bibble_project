@@ -30,14 +30,15 @@ class SignupView(APIView):
         ser.is_valid(raise_exception=True)
         data = ser.validated_data
 
+        # Create user
         user = User.objects.create_user(
-            username=data["username"],
+            full_name=data["full_name"],
             email=data["email"],
             phone=data["phone"],
             password=data["password"]
         )
 
-        # Social Login record
+        # Social login create
         Social_login.objects.create(
             user=user,
             provider="email",
@@ -45,23 +46,35 @@ class SignupView(APIView):
             password=make_password(data["password"])
         )
 
-        # FREE TRIAL CREATED HERE
-        Subscription.objects.create(
+        # Create trial subscription
+        subscription = Subscription.objects.create(
             user=user,
             current_plan="trial",
             trial_end=timezone.now() + timedelta(days=7),
             is_active=True
         )
 
+        # Create token
         token, expire = create_jwt_token_for_user(user.id)
         save_session(user, token, expire)
 
+        # Response
         return Response({
-            "message": "Signup success",
-            "trial": "7_days",
-            "user_id": user.id,
+            "message": "Signup successful",
+            "user": {
+                "id": user.id,
+                "full_name": user.full_name,
+                "email": user.email,
+                "phone": user.phone,
+                "username": user.username,
+            },
+            "subscription": {
+                "plan": subscription.current_plan,
+                "trial_end": subscription.trial_end,
+                "is_active": subscription.is_active
+            },
             "token": token
-        })
+        }, status=201)
 
 
     
@@ -218,7 +231,7 @@ class LoginView(APIView):
     
         if data.get("apple_token"):
             try:
-                decoded = pyjwt.decode(data["apple_token"], options={"verify_signature": False})
+                decoded = pyjwt.decode(data["apple_token"], options={"verify_signature": True})
                 email = decoded.get("email")
                 apple_uid = decoded["sub"]
             except Exception:

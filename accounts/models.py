@@ -2,28 +2,65 @@ from django.db import models
 from django.utils import timezone
 from django.contrib.auth.models import AbstractUser
 # Create your models here.
+from django.db import models
+from django.contrib.auth.models import AbstractUser
+from django.contrib.auth.models import BaseUserManager
 
+class UserManager(BaseUserManager):
+    def create_user(self, email, phone, password=None, **extra_fields):
+        if not email:
+            raise ValueError("Email is required")
+        if not phone:
+            raise ValueError("Phone is required")
 
+        email = self.normalize_email(email)
+        user = self.model(email=email, phone=phone, **extra_fields)
+        user.set_password(password)
+        user.save()
+        return user
+
+    def create_superuser(self, email, phone, password=None, **extra_fields):
+        extra_fields.setdefault("is_staff", True)
+        extra_fields.setdefault("is_superuser", True)
+
+        return self.create_user(email, phone, password, **extra_fields)
 
 class User(AbstractUser):
-    username = models.CharField(max_length=150 ,unique=False)
+    username = models.CharField(max_length=150, unique=True, blank=True, null=True)
     email = models.EmailField(unique=True)
     phone = models.CharField(max_length=20, unique=True)
 
+    full_name = models.CharField(max_length=255, blank=True, null=True)
 
     USERNAME_FIELD = "email"
-    REQUIRED_FIELDS = ["username", "phone"]  
+    REQUIRED_FIELDS = ["phone"]
+
+    objects = UserManager()
+
+    def save(self, *args, **kwargs):
+        if not self.username and self.full_name:
+            base_username = self.full_name.lower().replace(" ", "_")
+            new_username = base_username
+            counter = 1
+
+        # Ensure unique username
+            while User.objects.filter(username=new_username).exists():
+                new_username = f"{base_username}_{counter}"
+                counter += 1
+
+            self.username = new_username
+
+        super().save(*args, **kwargs)
+
 
     def __str__(self):
-        return self.username
+        return self.email
+
 
 
 class Profile(models.Model):
     user = models.OneToOneField(User,on_delete=models.CASCADE, related_name="profile")
-    avatar = models.ImageField(upload_to="avatars/",blank=True,null=True)
-    name = models.CharField(max_length= 50,unique=False)    
-    email = models.EmailField(blank=True,null=True)
-    phone = models.CharField(max_length=20,blank=True,null=True)
+    avatar = models.ImageField(upload_to="avatars/",blank=True,null=True)  
     gender = models.CharField(
         max_length=12,
         choices=[

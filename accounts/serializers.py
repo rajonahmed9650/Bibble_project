@@ -2,13 +2,11 @@ from rest_framework import serializers
 from .models import User,Profile
 class SignupSerializer(serializers.ModelSerializer):
     password = serializers.CharField(write_only=True)
+    confirm_password = serializers.CharField(write_only=True)
 
     class Meta:
         model = User
-        fields = ["username", "email", "phone", "password"]
-        extra_kwargs = {
-            "username": {"validators": []},  # REMOVE UNIQUE VALIDATION
-        }    
+        fields = ["full_name", "email", "phone", "password", "confirm_password"]
 
     def validate_email(self, value):
         if User.objects.filter(email=value).exists():
@@ -20,19 +18,12 @@ class SignupSerializer(serializers.ModelSerializer):
             raise serializers.ValidationError("Phone already exists")
         return value
 
-    # def validate_username(self, value):
-    #     if User.objects.filter(username=value).exists():
-    #         raise serializers.ValidationError("Username already exists")
-    #     return value
+    def validate(self, attrs):
+        if attrs["password"] != attrs["confirm_password"]:
+            raise serializers.ValidationError({"password": "Passwords do not match"})
+        return attrs
 
-    def create(self, validated_data):
-        user = User.objects.create_user(
-            username=validated_data["username"],
-            email=validated_data["email"],
-            phone=validated_data["phone"],
-            password=validated_data["password"]
-        )
-        return user   
+
     
 class ProfileSerializer(serializers.ModelSerializer):
     class Meta:
