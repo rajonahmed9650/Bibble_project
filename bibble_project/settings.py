@@ -42,6 +42,7 @@ INSTALLED_APPS = [
     'rest_framework',
     'accounts',
     'payments',
+    'journey'
 ]
 
 AUTH_USER_MODEL = "accounts.User"

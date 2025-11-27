@@ -69,6 +69,7 @@ class SignupView(APIView):
                 "username": user.username,
             },
             "subscription": {
+                "user_id":subscription.user.id,
                 "plan": subscription.current_plan,
                 "trial_end": subscription.trial_end,
                 "is_active": subscription.is_active
