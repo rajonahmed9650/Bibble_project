@@ -42,7 +42,9 @@ INSTALLED_APPS = [
     'rest_framework',
     'accounts',
     'payments',
-    'journey'
+    'journey',
+    'daily_devotion',
+    'quiz',
 ]
 
 AUTH_USER_MODEL = "accounts.User"

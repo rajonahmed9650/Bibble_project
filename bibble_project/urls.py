@@ -24,6 +24,7 @@ urlpatterns = [
     path("api/",include("accounts.urls")),
     path("api/",include("payments.urls")),
     path("journey/",include("journey.urls")),
+    path("daily_devotion/",include("daily_devotion.urls")),
 ]
 
 
