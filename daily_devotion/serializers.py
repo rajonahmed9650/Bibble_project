@@ -12,11 +12,17 @@ class DailyDevotionSerializer(serializers.ModelSerializer):
 class DailyPrayerSerializer(serializers.ModelSerializer):
     class Meta:
         model = DailyPrayer
-        fields = ["id","journey_id","day_id","name","prayer"]
+        fields = ["id","journey_id","day_id","name","prayer","audio"]
+    def get_audio(self, obj):
+        request = self.context.get("request")
+
+        if obj.audio:
+            return request.build_absolute_uri(obj.audio.url)
+        return None    
 
 
 class MicroActionSerializer(serializers.ModelSerializer):
     class Meta:
-        Model = MicroAction
+        model = MicroAction
         fields = ["id","journey_id","day_id","action"]
 

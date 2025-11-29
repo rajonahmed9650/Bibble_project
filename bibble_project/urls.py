@@ -25,6 +25,7 @@ urlpatterns = [
     path("api/",include("payments.urls")),
     path("journey/",include("journey.urls")),
     path("daily_devotion/",include("daily_devotion.urls")),
+    path("quiz/",include("quiz.urls")),
 ]
 
 
