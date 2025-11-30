@@ -28,7 +28,8 @@ class SignupSerializer(serializers.ModelSerializer):
 class ProfileSerializer(serializers.ModelSerializer):
     class Meta:
         model = Profile
-        fields = ["name","email","phone","gender","date_of_birth","avatar"]
+        fields = ["name", "email", "phone", "gender", "date_of_birth", "avatar"]
+
 
     def get_avatar_url(self, obj):
         request = self.context.get("request")

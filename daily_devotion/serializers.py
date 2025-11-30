@@ -12,7 +12,7 @@ class DailyDevotionSerializer(serializers.ModelSerializer):
 class DailyPrayerSerializer(serializers.ModelSerializer):
     class Meta:
         model = DailyPrayer
-        fields = ["id","journey_id","day_id","name","prayer","audio"]
+        fields = ["id","journey_id","day_id","prayer","audio"]
     def get_audio(self, obj):
         request = self.context.get("request")
 

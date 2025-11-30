@@ -1,10 +1,6 @@
 from rest_framework import serializers
 from .models import Journey,JourneyDetails,Journey_icon,Days
 
-
-
-
-
 class JourneyDetailsSerializer(serializers.ModelSerializer):
     class Meta:
         model = JourneyDetails
@@ -22,13 +18,18 @@ class DaysSerializer(serializers.ModelSerializer):
 
     def get_image(self, obj):
         request = self.context.get('request')
-        if request:
-            return request.build_absolute_uri(obj.image.url)
-        return obj.image.url
+
+        if obj.image and hasattr(obj.image, 'url'):
+            if request:
+                return request.build_absolute_uri(obj.image.url)
+            return obj.image.url
+
+        return None
 
     class Meta:
         model = Days
-        fields = ["journey_id","name","image"]
+        fields = ["journey_id", "name", "image"]
+
 
 
 

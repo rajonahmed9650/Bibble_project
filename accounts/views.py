@@ -355,10 +355,7 @@ class ForgotPasswordView(APIView):
         })
 
 
-    
-
-
-    
+        
 class ChangePasswordView(APIView):
     authentication_classes = [CustomJWTAuthentication]
     permission_classes = [IsAuthenticated]
@@ -386,10 +383,7 @@ class ChangePasswordView(APIView):
         return Response({"status": "password_changed"})
     
 
-
-
-
-    from rest_framework.permissions import IsAuthenticated
+from rest_framework.permissions import IsAuthenticated
 from .models import Sessions
 
 class LogoutView(APIView):

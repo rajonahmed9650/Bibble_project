@@ -40,7 +40,7 @@ INSTALLED_APPS = [
     'django.contrib.messages',
     'django.contrib.staticfiles',
     'rest_framework',
-    'accounts',
+    'accounts.apps.AccountsConfig',
     'payments',
     'journey',
     'daily_devotion',
