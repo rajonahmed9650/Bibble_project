@@ -3,12 +3,15 @@ from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status
 
+from rest_framework.permissions import IsAuthenticated ,AllowAny
+
 from .models import DailyDevotion,DailyPrayer,MicroAction
 from  .serializers import(
     DailyDevotionSerializer,
     DailyPrayerSerializer,
     MicroActionSerializer,
-    ReflectionSpaceSerializer,
+
+    
 )
 
 
@@ -63,42 +66,43 @@ class DailDevotionDetails(APIView):
     
 
 
-class ReflectionSpaceAPIView(APIView):
- 
-
-    def post(self, request):
-        serializer = ReflectionSpaceSerializer(data=request.data)
-
-        if serializer.is_valid():
-            note = serializer.validated_data.get("note")
-
-            # Always save with user
-            reflection = serializer.save(user_id=request.user)
-
-            if not note:
-                return Response({"message": "Reflection is empty."})
-
-            return Response({"message": "Reflection Saved"})
-
-        return Response(serializer.errors, status=400)
-  
-
         
 
         
 # ---------------- Daily Prayer Views ---------------- #
 
 class DailyPrayerListCreate(APIView):
-    def get(self,request):
-        data = DailyPrayer.objects.all()
-        serializer = DailyPrayerSerializer(data,many = True,context={"request": request})
-        return Response(serializer.data)
-    def post(self,request):
-        serializer = DailyPrayerSerializer(data = request.data,context={"request": request})
+
+    def post(self, request):
+        serializer = DailyPrayerSerializer(data=request.data, context={"request": request})
+
+        journey_id = request.data.get("journey_id")
+        day_id = request.data.get("day_id")
+
+        # Missing data
+        if not journey_id or not day_id:
+            return Response(
+                {"message": "journey_id and day_id are required"},
+                status=400
+            )
+
+        # 🔥 Correct duplicate check
+        if DailyPrayer.objects.filter(journey_id=journey_id, day_id=day_id).exists():
+            return Response(
+                {"message": "Daily Prayer already exists for this journey and day"},
+                status=400
+            )
+
         if serializer.is_valid():
             serializer.save()
-            return Response({"message": "Daily Prayer created successfully"},status=status.HTTP_201_CREATED)
-        return  Response(serializer.errors,status = status.HTTP_400_BAD_REQUEST)
+            return Response(
+                {"message": "Daily Prayer created successfully"},
+                status=201
+            )
+
+        return Response(serializer.errors, status=400)
+
+
 
 class DailyPrayerDetail(APIView):
     def get_obj(self,pk):
