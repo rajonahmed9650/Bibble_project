@@ -1,4 +1,4 @@
-from .models import DailyDevotion,DailyPrayer,MicroAction
+from .models import DailyDevotion,DailyPrayer,MicroAction,ReflectionSpace
 from rest_framework import serializers
 
 
@@ -7,6 +7,15 @@ class DailyDevotionSerializer(serializers.ModelSerializer):
     class Meta:
         model = DailyDevotion
         fields = ["id","journey_id","day_id","name","devotion","reflection"]
+
+class ReflectionSpaceSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = ReflectionSpace
+        fields = ["id","dailydevotion_id","note"]
+        extra_kwargs = {
+            "dailydevotion_id": {"required": True},
+        }
+
 
 
 class DailyPrayerSerializer(serializers.ModelSerializer):

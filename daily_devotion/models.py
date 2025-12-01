@@ -1,6 +1,6 @@
 from django.db import models
 from journey.models import Journey, Days
-
+from accounts.models import User
 
 class DailyDevotion(models.Model):
     journey_id = models.ForeignKey(Journey, on_delete=models.CASCADE)
@@ -14,7 +14,19 @@ class DailyDevotion(models.Model):
 
     def __str__(self):
         return self.name
+    
+    
+class ReflectionSpace(models.Model):
+    dailydevotion_id = models.ForeignKey(DailyDevotion, on_delete=models.CASCADE)
+    user_id = models.ForeignKey(User, on_delete=models.CASCADE)
 
+    note = models.TextField(blank=True, null=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        return f"{self.user_id.username}-{self.dailydevotion_id.id}"
+
+    
 
 class DailyPrayer(models.Model):
     journey_id = models.ForeignKey(Journey, on_delete=models.CASCADE)

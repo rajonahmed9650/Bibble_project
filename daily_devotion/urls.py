@@ -7,6 +7,7 @@ from .views import (
     DailyPrayerDetail,
     MicroActionListCreate,
     MicroActionDetail,
+    ReflectionSpaceAPIView
     )
 
 urlpatterns = [
@@ -15,6 +16,8 @@ urlpatterns = [
 
   path("daily_prayer/",DailyPrayerListCreate.as_view()),
   path("daily_prayer/<int:pk>/",DailyPrayerDetail.as_view()),
+
+  path("reflectionspace/",ReflectionSpaceAPIView.as_view()),
 
   path("micro_action/",MicroActionListCreate.as_view()),
   path("micro_action/<int:pk>/",MicroActionDetail.as_view()),

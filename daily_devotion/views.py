@@ -7,7 +7,8 @@ from .models import DailyDevotion,DailyPrayer,MicroAction
 from  .serializers import(
     DailyDevotionSerializer,
     DailyPrayerSerializer,
-    MicroActionSerializer
+    MicroActionSerializer,
+    ReflectionSpaceSerializer,
 )
 
 
@@ -59,6 +60,28 @@ class DailDevotionDetails(APIView):
             return Response({"error":"DailyDevotion not found"},status= status.HTTP_400_BAD_REQUEST)
         item.delete()
         return Response({"message":"Deleted successfully"})
+    
+
+
+class ReflectionSpaceAPIView(APIView):
+ 
+
+    def post(self, request):
+        serializer = ReflectionSpaceSerializer(data=request.data)
+
+        if serializer.is_valid():
+            note = serializer.validated_data.get("note")
+
+            # Always save with user
+            reflection = serializer.save(user_id=request.user)
+
+            if not note:
+                return Response({"message": "Reflection is empty."})
+
+            return Response({"message": "Reflection Saved"})
+
+        return Response(serializer.errors, status=400)
+  
 
         
 

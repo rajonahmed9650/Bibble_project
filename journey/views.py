@@ -11,19 +11,29 @@ from .serializers import JourneySerilzers,JourneyDetailsSerializer,Journey_icon,
 
 
 class JourneyListCreateAPIView(APIView):
-    def get(self,request):
+    def get(self, request):
         journeys = Journey.objects.all()
-        serializer = JourneySerilzers(journeys, many =True ,context={"request": request})
+        serializer = JourneySerilzers(journeys, many=True, context={"request": request})
         return Response(serializer.data)
-    
-    def post(self,request):
-        serializer = JourneySerilzers(data = request.data)
+
+    def post(self, request):
+        serializer = JourneySerilzers(data=request.data)
+
+        # Check duplicate by name
+        journey_name = request.data.get("name")
+
+        if Journey.objects.filter(name=journey_name).exists():
+            return Response({"message": "Journey already exists"}, status=400)
+
+        # Validate and save
         if serializer.is_valid():
             serializer.save()
             return Response({
-                    "message": "Journey  created successfully",
-            })
-        return Response(serializer.errors,status=status.HTTP_400_BAD_REQUEST)
+                "message": "Journey created successfully",
+            }, status=201)
+
+        return Response(serializer.errors, status=400)
+
 
 
 
