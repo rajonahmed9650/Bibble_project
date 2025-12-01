@@ -25,7 +25,7 @@ class QuizAnswerOption(models.Model):
 
     def __str__(self):
         return f"{self.option}-{self.id}"
-
+   
 
 class QuizAnswer(models.Model):
     daily_quiz_id = models.ForeignKey(DailyQuiz,on_delete=models.CASCADE)
