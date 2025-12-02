@@ -16,7 +16,7 @@ class DailyQuiz(models.Model):
 
 
 class QuizAnswerOption(models.Model):
-    daily_quiz = models.ForeignKey(DailyQuiz, on_delete=models.CASCADE, related_name="options")
+    daily_quiz_id = models.ForeignKey(DailyQuiz, on_delete=models.CASCADE, related_name="options")
     option = models.CharField(max_length=255)
     is_correct = models.BooleanField(default=False)
 

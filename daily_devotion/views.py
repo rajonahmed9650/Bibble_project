@@ -2,16 +2,13 @@ from django.shortcuts import render
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status
-
 from rest_framework.permissions import IsAuthenticated ,AllowAny
-
 from .models import DailyDevotion,DailyPrayer,MicroAction
 from  .serializers import(
     DailyDevotionSerializer,
     DailyPrayerSerializer,
-    MicroActionSerializer,
-
-    
+    MicroActionSerializer,  
+    DailyReflicationSerializer,
 )
 
 
@@ -65,34 +62,31 @@ class DailDevotionDetails(APIView):
         return Response({"message":"Deleted successfully"})
     
 
-
+class DailyReflectionSpace(APIView):
+    permission_classes = [IsAuthenticated]
+    def post(self,request):
+        serializer = DailyReflicationSerializer(data = request.data)
+        if serializer.is_valid():
+            serializer.save(user = request.user)
+            return Response(
+                {"message":"Reflection saved"},
+                    status=status.HTTP_201_CREATED
+            )
+        return Response(serializer.errors,status=status.HTTP_400_BAD_REQUEST)
         
 
         
 # ---------------- Daily Prayer Views ---------------- #
 
 class DailyPrayerListCreate(APIView):
+    
+    def get(self,request):
+        data = DailyPrayer.objects.all()
+        serializers = DailyPrayerSerializer(data,many=True)
+        return Response(serializers.data)
 
     def post(self, request):
         serializer = DailyPrayerSerializer(data=request.data, context={"request": request})
-
-        journey_id = request.data.get("journey_id")
-        day_id = request.data.get("day_id")
-
-        # Missing data
-        if not journey_id or not day_id:
-            return Response(
-                {"message": "journey_id and day_id are required"},
-                status=400
-            )
-
-        # 🔥 Correct duplicate check
-        if DailyPrayer.objects.filter(journey_id=journey_id, day_id=day_id).exists():
-            return Response(
-                {"message": "Daily Prayer already exists for this journey and day"},
-                status=400
-            )
-
         if serializer.is_valid():
             serializer.save()
             return Response(

@@ -5,7 +5,7 @@ from accounts.models import User
 class DailyDevotion(models.Model):
     journey_id = models.ForeignKey(Journey, on_delete=models.CASCADE)
     day_id = models.ForeignKey(Days, on_delete=models.CASCADE)
-    name = models.CharField()
+    scripture_name = models.CharField()
     devotion = models.TextField()
     reflection = models.TextField()
 
@@ -16,7 +16,15 @@ class DailyDevotion(models.Model):
         return self.name
     
     
+class DailyReflectionSpace(models.Model):
+    dailydevotion_id = models.ForeignKey(DailyDevotion,on_delete=models.CASCADE)
+    reflection_note = models.TextField(blank=True,null=True)
 
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        return f"Reflection for {self.dailydevotion_id}"
+    
 
     
 

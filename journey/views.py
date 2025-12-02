@@ -2,6 +2,7 @@ from django.shortcuts import render
 from rest_framework.response import Response
 from rest_framework.views import APIView
 from rest_framework import status
+from rest_framework.parsers import MultiPartParser, FormParser
 
 from .models import Journey,JourneyDetails,Journey_icon,Days
 from .serializers import JourneySerilzers,JourneyDetailsSerializer,Journey_icon,DaysSerializer,JourneyIconSerializer
@@ -127,21 +128,26 @@ class JourneyDetailsAPIView(APIView):
 # Days views
 
 class DayListCreateAPIView(APIView):
-    def get(self,request):
-        data = Days.objects.all()
-        serializer = DaysSerializer(data , many = True)
-        return Response (serializer.data)
+    parser_classes = [MultiPartParser, FormParser]
 
-    def post(self,request):
-        serializer = DaysSerializer(data = request.data)
+    def get(self, request):
+        days = Days.objects.all()
+        serializer = DaysSerializer(days, many=True, context={"request": request})
+        return Response(serializer.data)
+
+    def post(self, request):
+        serializer = DaysSerializer(data=request.data, context={"request": request})
+        
         if serializer.is_valid():
             serializer.save()
-            return Response({
-                "message":"Journey days created"
-            },
+            return Response(
+                {"message": "Journey days created"},
                 status=status.HTTP_201_CREATED
-                )
-        return Response(serializer.errors,status=status.HTTP_400_BAD_REQUEST)
+            )
+
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+
 
 class DaysAPIView(APIView):
     def get_obj(self,pk):
@@ -184,10 +190,10 @@ class DaysAPIView(APIView):
 class JourneyIconListView(APIView):
     def get(self,request):
         data = Journey_icon.objects.all()
-        serializer = JourneyIconSerializer(data, many = True)
+        serializer = JourneyIconSerializer(data, many=True, context={"request": request})
         return Response(serializer.data)
     def post(self,request):
-        serializer = JourneyIconSerializer(data = request.data)
+        serializer = JourneyIconSerializer(data=request.data, context={"request": request})
         if serializer.is_valid():
             serializer.save()
             return Response({"message":"Icon add succsfull"},status=status.HTTP_201_CREATED)

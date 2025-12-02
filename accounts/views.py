@@ -60,14 +60,14 @@ class SignupView(APIView):
 
         # Response
         return Response({
-            "message": "Signup successful",
-            "user": {
-                "id": user.id,
-                "full_name": user.full_name,
-                "email": user.email,
-                "phone": user.phone,
-                "username": user.username,
-            },
+            "Signup completed successfully."
+            # "user": {
+            #     "id": user.id,
+            #     "full_name": user.full_name,
+            #     "email": user.email,
+            #     "phone": user.phone,
+            #     "username": user.username,
+            # },
             "subscription": {
                 "user_id":subscription.user.id,
                 "plan": subscription.current_plan,
