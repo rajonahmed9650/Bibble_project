@@ -29,6 +29,7 @@ class Days(models.Model):
     name = models.CharField(max_length=100)
     image = models.ImageField(upload_to="journey/days")
 
+    order = models.PositiveIntegerField(default=1)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
@@ -46,3 +47,15 @@ class Journey_icon(models.Model):
 
     def __str__(self):
         return f"{self.journey_id.name} Icon"
+    
+
+class PersonaJourney(models.Model):
+    persona = models.CharField(max_length=255,unique=True)
+    sequence = models.JSONField()
+
+
+    def __str__(self):
+        return self.persona
+
+    
+        

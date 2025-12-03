@@ -20,6 +20,9 @@ from .utils import generate_otp_code ,save_session,create_jwt_token_for_user,sav
 from django.views.decorators.csrf import csrf_exempt
 from django.utils.decorators import method_decorator
 
+from rest_framework.permissions import IsAuthenticated
+from .models import Sessions
+
 
 @method_decorator(csrf_exempt, name="dispatch")
 class SignupView(APIView):
@@ -61,13 +64,6 @@ class SignupView(APIView):
         # Response
         return Response({
             "Signup completed successfully."
-            # "user": {
-            #     "id": user.id,
-            #     "full_name": user.full_name,
-            #     "email": user.email,
-            #     "phone": user.phone,
-            #     "username": user.username,
-            # },
             "subscription": {
                 "user_id":subscription.user.id,
                 "plan": subscription.current_plan,
@@ -76,10 +72,6 @@ class SignupView(APIView):
             },
             "token": token
         }, status=201)
-
-
-    
-
 
 class ProfileView(APIView):
     authentication_classes = [CustomJWTAuthentication]
@@ -96,10 +88,6 @@ class ProfileView(APIView):
         serializer.is_valid(raise_exception=True)
         serializer.save()
         return Response(serializer.data)
-
-
-
-
 
 class OTPVerifiyView(APIView):
     def post(self, request):
@@ -180,10 +168,6 @@ class OTPVerifiyView(APIView):
             return Response({"status": "login_success", "token": token})
 
         return Response({"error": "Invalid flow"}, status=400)
-
-
-
-
 
 
 class LoginView(APIView):
@@ -325,10 +309,6 @@ class ResetPasswordView(APIView):
             "message": "Password reset successfully."
         })
   
-                
-
-
-
 class ForgotPasswordView(APIView):
     def post(self, request):
         ser = ForgotPasswordSerializer(data=request.data)
@@ -383,9 +363,6 @@ class ChangePasswordView(APIView):
         return Response({"status": "password_changed"})
     
 
-from rest_framework.permissions import IsAuthenticated
-from .models import Sessions
-
 class LogoutView(APIView):
     permission_classes = [IsAuthenticated]
 
@@ -399,3 +376,34 @@ class LogoutView(APIView):
         Sessions.objects.filter(token=token).delete()
 
         return Response({"status": "logged_out"})
+
+import requests
+
+class CategorizeView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def post(self,request):
+        user = request.user
+        qa_pairs = request.data.get("qa_pairs")
+        if not qa_pairs:
+            return Response({"error":"qa_pairs is required"},status=status.HTTP_400_BAD_REQUEST)
+        if user.category:
+            return Response({"message":"You already have a category assigned"})
+        
+        external_url = "http://206.162.244.135:8001/api/categorize/"
+
+        response = requests.post(external_url,json={"qa_pairs":qa_pairs})
+
+        data = response.json()
+
+        category = data.get("category")
+
+        if not category:
+            return Response({"error":"No category returned"},status=status.HTTP_502_BAD_GATEWAY)
+        user.category = category
+        user.save()
+
+        return Response({
+            "message":"Category saved successfully",
+            "category":user.category
+        })
