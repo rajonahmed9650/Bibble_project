@@ -1,11 +1,42 @@
 from django.shortcuts import render
 from rest_framework.response import Response
 from rest_framework.views import APIView
+from rest_framework.permissions import IsAuthenticated
 from rest_framework import status
 from rest_framework.parsers import MultiPartParser, FormParser
 
 from .models import Journey,JourneyDetails,Journey_icon,Days
 from .serializers import JourneySerilzers,JourneyDetailsSerializer,Journey_icon,DaysSerializer,JourneyIconSerializer
+
+from .utils import get_today_journey_id
+
+from datetime import date
+# current journey
+
+class JourneyView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self,request):
+        user = request.user
+        
+        result = get_today_journey_id(user)
+
+        if result is None:
+            return Response({"error":"No journey available for this user"},status=status.HTTP_400_BAD_REQUEST)
+        
+        journdy_id , day_number = result
+
+        journey = Journey.objects.filter(id=journdy_id).first()
+        serializer = JourneySerilzers(journey)
+
+        return Response({
+            "data":str(date.today()),
+            "day_number":day_number,
+            "journey_id":journdy_id,
+            "journey":serializer.data
+        })
+
+
 
 
 # JOURNEY VIEW
