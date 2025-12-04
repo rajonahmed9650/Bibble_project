@@ -13,7 +13,7 @@ class DailyDevotion(models.Model):
     updated_at = models.DateTimeField(auto_now=True)
 
     def __str__(self):
-        return self.name
+        return self.scripture_name
     
     
 class DailyReflectionSpace(models.Model):
@@ -31,7 +31,7 @@ class DailyReflectionSpace(models.Model):
 class DailyPrayer(models.Model):
     journey_id = models.ForeignKey(Journey, on_delete=models.CASCADE)
     day_id = models.ForeignKey(Days, on_delete=models.CASCADE)
-    prayer = models.TextField(max_length=255)
+    prayer = models.TextField()
     audio = models.FileField(upload_to="prayers/audio/", null=True, blank=True)
 
     created_at = models.DateTimeField(auto_now_add=True)

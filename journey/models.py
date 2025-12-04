@@ -34,7 +34,7 @@ class Days(models.Model):
     updated_at = models.DateTimeField(auto_now=True)
 
     def __str__(self):
-        return f"{self.journey_id.name}-{self.name}"
+        return f"{self.id}"
 
 
 class Journey_icon(models.Model):

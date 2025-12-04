@@ -31,7 +31,7 @@ class JourneyView(APIView):
 
         return Response({
             "data":str(date.today()),
-            "day_number":day_number,
+            # "day_number":day_number,
             "journey_id":journdy_id,
             "journey":serializer.data
         })

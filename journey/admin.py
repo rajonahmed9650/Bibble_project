@@ -6,5 +6,12 @@ from .models import Journey,Journey_icon,JourneyDetails,Days,PersonaJourney
 admin.site.register(Journey)
 admin.site.register(Journey_icon)
 admin.site.register(JourneyDetails)
-admin.site.register(Days)
-admin.site.register(PersonaJourney)
+
+class DaysAdmin(admin.ModelAdmin):
+    list_display = ("id","name",)
+    ordering =("id",)
+admin.site.register(Days,DaysAdmin)
+class PersonJourneyAdmin(admin.ModelAdmin):
+    list_display = ("id","persona",)
+    ordering = ("id",)
+admin.site.register(PersonaJourney,PersonJourneyAdmin)

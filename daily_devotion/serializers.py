@@ -4,6 +4,7 @@ from rest_framework import serializers
 
 
 class DailyDevotionSerializer(serializers.ModelSerializer):
+
     class Meta:
         model = DailyDevotion
         fields = ["id","journey_id","day_id","scripture_name","devotion","reflection"]

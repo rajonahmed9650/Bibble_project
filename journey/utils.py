@@ -1,4 +1,4 @@
-from datetime import date
+from datetime import date,datetime,timedelta
 from .models import PersonaJourney
 
 
@@ -17,7 +17,8 @@ def get_today_journey_id(user):
         user.journey_start_date = date.today()
         user.save()
 
-    days_passed = (date.today()-user.journey_start_date).days 
+    start_datetime = datetime.combine(user.journey_start_date, datetime.min.time())
+    days_passed = int((datetime.now() - start_datetime).total_seconds() // 60) 
 
     index = days_passed % len(sequence)
 

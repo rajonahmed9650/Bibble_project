@@ -6,8 +6,9 @@ from .views import (
     ForgotPasswordView,
     ResetPasswordView,
     ChangePasswordView,
-    LogoutView,ProfileView,
-    CategorizeView
+    LogoutView,
+    ProfileView,
+    CategorizeView,
     )
 
 

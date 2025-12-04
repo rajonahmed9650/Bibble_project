@@ -95,3 +95,28 @@ class SubmitQuizAnswer(APIView):
         result = serializer.save()
         return Response(result)
 
+
+
+
+from daily_devotion.utils import get_today_ids
+
+
+
+class TodayquizView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self,request):
+        user = request.user
+
+        journey_id,days_id,days_number = get_today_ids(user)
+
+        quiz = DailyQuiz.objects.filter(journey_id=journey_id,days_id=days_id).first()
+
+        serializer  = DailyQuizSerializer(quiz)
+
+        return Response({
+            "journey_id":journey_id,
+            "day_id":days_id,
+            "quiz":serializer.data
+        })
+

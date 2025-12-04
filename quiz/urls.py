@@ -3,8 +3,8 @@ from .views import (
     DailyQuizListCreate,
     DailyQuizDetail,
     QuizOptionListCreate,
-   
     SubmitQuizAnswer,
+    TodayquizView
 )
 
 
@@ -17,5 +17,6 @@ urlpatterns = [
 
     path("quiz_option/",QuizOptionListCreate.as_view()),
     path("quiz_submit/",SubmitQuizAnswer.as_view()),
+    path("today_quiz/",TodayquizView.as_view()),
 
 ]
