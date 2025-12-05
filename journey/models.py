@@ -33,8 +33,11 @@ class Days(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
+    class Meta:
+        unique_together = ("journey_id", "order")
+
     def __str__(self):
-        return f"{self.id}"
+        return f"{self.journey_id.name} - Day {self.order}"
 
 
 class Journey_icon(models.Model):

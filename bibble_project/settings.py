@@ -45,6 +45,7 @@ INSTALLED_APPS = [
     'journey',
     'daily_devotion',
     'quiz',
+    'userprogress',
 ]
 
 AUTH_USER_MODEL = "accounts.User"
