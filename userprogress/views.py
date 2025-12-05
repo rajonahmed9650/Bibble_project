@@ -51,14 +51,14 @@ class CompleteDayView(APIView):
         if not day_id:
             return Response({"error": "No active day"}, status=400)
 
-        # 1️⃣ Mark day complete
+        # 1️Mark day complete
         UserDayProgress.objects.update_or_create(
             user=user,
             day_id_id=day_id,
             defaults={"completed": True}
         )
 
-        # 2️⃣ Update journey progress
+        # 2️Update journey progress
         progress = UserJourneyProgress.objects.filter(
             user=user,
             completed=False
@@ -67,7 +67,7 @@ class CompleteDayView(APIView):
         progress.completed_days += 1
         progress.save()
 
-        # 3️⃣ Journey complete check
+        # 3️Journey complete check
         journey_completed = (progress.completed_days % 7 == 0)
         next_journey_unlocked = False
 
@@ -90,12 +90,12 @@ class CompleteDayView(APIView):
 
                 next_journey_unlocked = True
 
-        # 4️⃣ RESPONSE
+        # 4️RESPONSE
         return Response({
             "message": "🎉 Journey completed successfully!" if journey_completed else "Day completed",
             "global_day": global_day,
-            "journey_completed": journey_completed,          # 👈 true / false
-            "next_journey_unlocked": next_journey_unlocked  # 👈 true / false
+            "journey_completed": journey_completed,          # true / false
+            "next_journey_unlocked": next_journey_unlocked  # true / false
         })
 
 
