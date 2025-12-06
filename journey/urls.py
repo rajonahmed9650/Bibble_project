@@ -7,14 +7,14 @@ from .views import (
     DaysAPIView,
     JourneyIconListView,
     JourneyIconAPiView,
-    JourneyView
+ 
     )
 
 
 urlpatterns = [
     path("",JourneyListCreateAPIView.as_view()),
     path("<int:pk>/",SingleJourneyAPIview.as_view()),
-    path("currentjourney/",JourneyView.as_view()),
+    # path("currentjourney/",JourneyView.as_view()),
 
 
     path("details/",JourneyDetailsListCreateAPIView.as_view()),

@@ -9,6 +9,7 @@ from .views import (
     LogoutView,
     ProfileView,
     CategorizeView,
+    DisableAccountView
     )
 
 
@@ -22,4 +23,6 @@ urlpatterns = [
    path("auth/logout/", LogoutView.as_view(), name="auth_logout"),
    path("profile/", ProfileView.as_view(), name="profile"),
    path("user_categorize/",CategorizeView.as_view(),name="category"),
+   path("account/disable/", DisableAccountView.as_view()),
+
 ]

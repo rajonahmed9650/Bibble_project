@@ -8,12 +8,6 @@ from .views import (
     MicroActionListCreate,
     MicroActionDetail,
     DailyReflectionSpace,
-
-
-    TodayDevotionView,
-    TodayPrayerView,
-    TodayMicroActionView
-   
     )
 
 urlpatterns = [
@@ -29,7 +23,7 @@ urlpatterns = [
 
 
 
-  path("today/devotion/", TodayDevotionView.as_view()),
-  path("today/prayer/",TodayPrayerView.as_view()),
-  path("today/action/",TodayMicroActionView.as_view()),
+  # path("today/devotion/", TodayDevotionView.as_view()),
+  # path("today/prayer/",TodayPrayerView.as_view()),
+  # path("today/action/",TodayMicroActionView.as_view()),
 ]   

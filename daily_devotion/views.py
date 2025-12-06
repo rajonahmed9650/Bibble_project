@@ -15,6 +15,7 @@ from  .serializers import(
 # ---------------- Daily Devotion Views ---------------- #
 
 class DailyDevotionListCreate(APIView):
+    permission_classes = [IsAuthenticated]
     def get(self,request):
         data = DailyDevotion.objects.all()
         serializer = DailyDevotionSerializer(data,many=True)
@@ -32,6 +33,7 @@ class DailyDevotionListCreate(APIView):
     
 
 class DailDevotionDetails(APIView):
+    permission_classes = [IsAuthenticated]
     def get_obj(self,pk):
         try:
             return DailyDevotion.objects.get(pk = pk)
@@ -77,28 +79,65 @@ class DailyReflectionSpace(APIView):
 
         
 # ---------------- Daily Prayer Views ---------------- #
-
+import requests
+from django.core.files.base import ContentFile
 class DailyPrayerListCreate(APIView):
-    
+    permission_classes = [IsAuthenticated]
     def get(self,request):
         data = DailyPrayer.objects.all()
-        serializers = DailyPrayerSerializer(data,many=True)
+        serializers = DailyPrayerSerializer(data, context={"request": request},many = True)
         return Response(serializers.data)
-
     def post(self, request):
+        # 1 validate
         serializer = DailyPrayerSerializer(data=request.data, context={"request": request})
-        if serializer.is_valid():
-            serializer.save()
-            return Response(
-                {"message": "Daily Prayer created successfully"},
-                status=201
+        if not serializer.is_valid():
+            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+        # 2 save prayer first
+        obj = serializer.save()  # now obj has id, prayer, journey, day
+
+        # 3build external request payload
+        payload = {
+            "text": obj.prayer,
+            "voice": "alloy",
+            "model": "tts-1",
+            "speed": 1,
+            "save_file": False,
+            "filename": f"prayer_{obj.id}.mp3"
+        }
+
+        # 4 hit external audio stream API
+        try:
+            res = requests.post(
+                "http://206.162.244.135:8001/api/stream",
+                json=payload
+            )
+        except Exception as e:
+            return Response({"error": f"Audio API failed: {str(e)}"}, status=500)
+
+        #  save binary audio to Django
+        if res.status_code == 200:
+            obj.audio.save(
+                f"prayer_{obj.id}.mp3",
+                ContentFile(res.content),
+                save=True
             )
 
-        return Response(serializer.errors, status=400)
+        # 6 build final response
+        audio_url = None
+        if obj.audio:
+            audio_url = request.build_absolute_uri(obj.audio.url)
+
+        return Response({
+            "id": obj.id,
+            "prayer": obj.prayer,
+            "audio_url": audio_url
+        }, status=201)
 
 
 
 class DailyPrayerDetail(APIView):
+    permission_classes = [IsAuthenticated]
     def get_obj(self,pk):
         try:
             return DailyPrayer.objects.get(pk=pk)
@@ -129,6 +168,7 @@ class DailyPrayerDetail(APIView):
 # ---------------- Micro Action Views ---------------- #
 
 class MicroActionListCreate(APIView):
+    permission_classes = [IsAuthenticated]
     def get(self,request):
         data = MicroAction.objects.all()    
         serializer = MicroActionSerializer(data, many = True)
@@ -143,6 +183,7 @@ class MicroActionListCreate(APIView):
 
 
 class MicroActionDetail(APIView):
+    permission_classes = [IsAuthenticated]
     def get_obj(self,pk):
         try:
             return MicroAction.objects.get(pk=pk)
@@ -177,64 +218,64 @@ class MicroActionDetail(APIView):
 # ========================================
 
 
-from .utils import get_today_ids
+# from .utils import get_today_ids
 
-class TodayDevotionView(APIView):
-    permission_classes = [IsAuthenticated]
+# class TodayDevotionView(APIView):
+#     permission_classes = [IsAuthenticated]
 
-    def get(self,request):
+#     def get(self,request):
 
-        journey_id , day_id , day_number = get_today_ids(request.user)
-        print("DEBUG:", journey_id, day_id, day_number)
+#         journey_id , day_id , day_number = get_today_ids(request.user)
+#         print("DEBUG:", journey_id, day_id, day_number)
 
 
-        if not journey_id or not day_id:
-            return Response({"error":"No content available"},status=status.HTTP_404_NOT_FOUND)
+#         if not journey_id or not day_id:
+#             return Response({"error":"No content available"},status=status.HTTP_404_NOT_FOUND)
         
-        devetion = DailyDevotion.objects.filter(journey_id=journey_id,day_id=day_id).first()
+#         devetion = DailyDevotion.objects.filter(journey_id=journey_id,day_id=day_id).first()
 
-        data = DailyDevotionSerializer(devetion).data if devetion else {}
+#         data = DailyDevotionSerializer(devetion).data if devetion else {}
 
-        return Response({
-            "journey_id":journey_id,
-            "day_id":day_id,
-            "devetion":data
-        })
-
-
+#         return Response({
+#             "journey_id":journey_id,
+#             "day_id":day_id,
+#             "devetion":data
+#         })
 
 
-class TodayPrayerView(APIView):
-    permission_classes = [IsAuthenticated]
 
-    def get(self,request):
-        user = request.user
 
-        journey_id, day_id , day_number = get_today_ids(user)
+# class TodayPrayerView(APIView):
+#     permission_classes = [IsAuthenticated]
+
+#     def get(self,request):
+#         user = request.user
+
+#         journey_id, day_id , day_number = get_today_ids(user)
         
-        prayer = DailyPrayer.objects.filter(journey_id=journey_id,day_id=day_id).first()
-        data = DailyPrayerSerializer(prayer).data if prayer else {}
+#         prayer = DailyPrayer.objects.filter(journey_id=journey_id,day_id=day_id).first()
+#         data = DailyPrayerSerializer(prayer).data if prayer else {}
 
-        return Response({
-            "journey_id":journey_id,
-            "day_id":day_id,
-            "prayer":data
-        })
+#         return Response({
+#             "journey_id":journey_id,
+#             "day_id":day_id,
+#             "prayer":data
+#         })
 
 
-class TodayMicroActionView(APIView):
-    permission_classes = [IsAuthenticated]
+# class TodayMicroActionView(APIView):
+#     permission_classes = [IsAuthenticated]
 
-    def get(self,request):
-        user = request.user
+#     def get(self,request):
+#         user = request.user
         
-        journey_id,day_id,day_number = get_today_ids(user)
+#         journey_id,day_id,day_number = get_today_ids(user)
 
-        action = MicroAction.objects.filter(journey_id=journey_id,day_id=day_id).first()
-        data = DailyDevotionSerializer(action).data if action else {}
+#         action = MicroAction.objects.filter(journey_id=journey_id,day_id=day_id).first()
+#         data = DailyDevotionSerializer(action).data if action else {}
 
-        return Response({
-            "journey_id":journey_id,
-            "day_id":day_id,
-            "prayer":data
-            })
+#         return Response({
+#             "journey_id":journey_id,
+#             "day_id":day_id,
+#             "prayer":data
+#             })

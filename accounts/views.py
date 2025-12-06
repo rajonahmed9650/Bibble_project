@@ -23,6 +23,9 @@ from django.utils.decorators import method_decorator
 from rest_framework.permissions import IsAuthenticated
 from .models import Sessions
 
+from notifications.models import Notification
+from notifications.utils import push_notification
+
 
 @method_decorator(csrf_exempt, name="dispatch")
 class SignupView(APIView):
@@ -60,6 +63,19 @@ class SignupView(APIView):
         # Create token
         token, expire = create_jwt_token_for_user(user.id)
         save_session(user, token, expire)
+
+        note = Notification.objects.create(
+            user = user,
+            title = "Welcome",
+            message="Your account has been created successfully and trial started.",
+            notification_type = "system"
+        )
+
+        push_notification(user.id,{
+            "title":note.title,
+            "message":note.message
+        })
+
 
         # Response
         return Response({
@@ -136,6 +152,18 @@ class OTPVerifiyView(APIView):
             token, expire = create_jwt_token_for_user(user.id)
             save_session(user, token, expire)
 
+            note = Notification.objects.create(
+                user=user,
+                title="Verification Successful",
+                message="Your account has been verified.",
+                notification_type="system"
+            )
+
+            push_notification(user.id, {
+                "title": note.title,
+                "message": note.message
+            })
+
             return Response({
                 "message": "User verified successfully",
                 "verify_status": "verified",
@@ -204,6 +232,19 @@ class LoginView(APIView):
             token, expire = create_jwt_token_for_user(user.id)
             save_session(user, token, expire)
 
+            note = Notification.objects.create(
+                user=user,
+                title="Login Successful",
+                message="You have logged in successfully.",
+                notification_type="system"
+            )
+
+            push_notification(user.id, {
+                "title": note.title,
+                "message": note.message
+            })
+
+
             return Response({
                 "status": "success",
                 "login_by": "google",
@@ -234,6 +275,18 @@ class LoginView(APIView):
 
             token, expire = create_jwt_token_for_user(user.id)
             save_session(user, token, expire)
+            note = Notification.objects.create(
+                user=user,
+                title="Login Successful",
+                message="You have logged in successfully.",
+                notification_type="system"
+            )
+
+            push_notification(user.id, {
+                "title": note.title,
+                "message": note.message
+            })
+
 
             return Response({
                 "status": "success",
@@ -257,7 +310,8 @@ class LoginView(APIView):
                 )
             except User.DoesNotExist:
                 return Response({"error": "User not found"}, status=400)
-
+            if not user.is_active:
+                return Response({"error": "Account disabled"}, status=403)
             social = Social_login.objects.filter(user=user, provider="email").first()
             if not social:
                 return Response({"error": "Password login not allowed"}, status=400)
@@ -267,6 +321,19 @@ class LoginView(APIView):
 
             token, expire = create_jwt_token_for_user(user.id)
             save_session(user, token, expire)
+
+            note = Notification.objects.create(
+                user=user,
+                title="Login Successful",
+                message="You have logged in successfully.",
+                notification_type="system"
+            )
+
+            push_notification(user.id, {
+                "title": note.title,
+                "message": note.message
+            })
+
 
             return Response({
                 "status": "success",
@@ -304,6 +371,18 @@ class ResetPasswordView(APIView):
 
         delete_otp_cache(email + "_reset_allowed")
 
+        note = Notification.objects.create(
+            user=user,
+            title="Password Reset Successful",
+            message="Your password has been changed.",
+            notification_type="system"
+        )
+
+        push_notification(user.id, {
+            "title": note.title,
+            "message": note.message
+        })
+
         return Response({
             "status": "password_reset_success",
             "message": "Password reset successfully."
@@ -327,6 +406,19 @@ class ForgotPasswordView(APIView):
         save_otp_cache(email + "_type", "forgot_password")
 
         send_otp_code(email, otp)
+
+        note = Notification.objects.create(
+            user=user,
+            title="Reset OTP Sent",
+            message="OTP sent to your email for password reset.",
+            notification_type="system"
+        )
+
+        push_notification(user.id, {
+            "title": note.title,
+            "message": note.message
+        })
+
 
         return Response({
             "status": "otp_sent",
@@ -360,6 +452,18 @@ class ChangePasswordView(APIView):
         identity.password = make_password(new_password)
         identity.save()
 
+        note = Notification.objects.create(
+            user=user,
+            title="Password Changed",
+            message="Your password updated successfully.",
+            notification_type="system"
+        )
+
+        push_notification(user.id, {
+            "title": note.title,
+            "message": note.message
+        })
+
         return Response({"status": "password_changed"})
     
 
@@ -367,6 +471,7 @@ class LogoutView(APIView):
     permission_classes = [IsAuthenticated]
 
     def post(self, request):
+        user = request.user
         token = request.auth  # current JWT
 
         if not token:
@@ -374,6 +479,18 @@ class LogoutView(APIView):
 
         # Remove session from database
         Sessions.objects.filter(token=token).delete()
+
+        note = Notification.objects.create(
+            user=user,
+            title="Logout Successful",
+            message="You have been logged out.",
+            notification_type="system"
+        )
+
+        push_notification(user.id, {
+            "title": note.title,
+            "message": note.message
+        })
 
         return Response({"status": "logged_out"})
 
@@ -407,3 +524,46 @@ class CategorizeView(APIView):
             "message":"Category saved successfully",
             "category":user.category
         })
+    
+
+
+from django.contrib.auth import authenticate
+
+
+class DisableAccountView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request):
+        user = request.user
+        password = request.data.get("password")
+
+        if not password:
+            return Response({"error": "Password is required"}, status=400)
+
+        # verify password
+        user_check = authenticate(username=user.email, password=password)
+
+        if user_check is None:
+            return Response({"error": "Invalid password"}, status=400)
+
+        # disable account
+        user.is_active = False
+        user.save()
+
+        note = Notification.objects.create(
+            user=user,
+            title="Account Disabled",
+            message="Your account has been disabled successfully.",
+            notification_type="system"
+        )
+
+        push_notification(user.id, {
+            "title": note.title,
+            "message": note.message
+        })
+
+        # JWT or token remove (frontend must delete token)
+        return Response(
+            {"message": "Account disabled successfully"},
+            status=200
+        )

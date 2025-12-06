@@ -41,12 +41,27 @@ INSTALLED_APPS = [
     'django.contrib.staticfiles',
     'rest_framework',
     'accounts.apps.AccountsConfig',
+    'channels',
     'payments',
     'journey',
     'daily_devotion',
     'quiz',
     'userprogress',
+    'notifications'
 ]
+
+
+ASGI_APPLICATION = "bibble_project.asgi.application"
+
+CHANNEL_LAYERS = {
+    "default": {
+        "BACKEND": "channels_redis.core.RedisChannelLayer",
+        "CONFIG": {
+            "hosts": [("127.0.0.1", 6380)],
+        },
+    },
+}
+
 
 AUTH_USER_MODEL = "accounts.User"
 
