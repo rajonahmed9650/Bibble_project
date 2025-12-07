@@ -64,10 +64,10 @@ class SignupView(APIView):
         token, expire = create_jwt_token_for_user(user.id)
         save_session(user, token, expire)
 
-        push_notification(user.id, {
-            "title": "Welcome",
-            "message": SYSTEM_MESSAGES["signup_success"]
-        })
+        # push_notification(user.id, {
+        #     "title": "Welcome",
+        #     "message": SYSTEM_MESSAGES["signup_success"]
+        # })
 
 
 
@@ -155,10 +155,10 @@ class OTPVerifiyView(APIView):
             token, expire = create_jwt_token_for_user(user.id)
             save_session(user, token, expire)
 
-            push_notification(user.id, {
-                "title": "Verification",
-                "message": SYSTEM_MESSAGES["otp_verified"]
-            })
+            # push_notification(user.id, {
+            #     "title": "Verification",
+            #     "message": SYSTEM_MESSAGES["otp_verified"]
+            # })
 
 
             return Response({
@@ -193,10 +193,10 @@ class OTPVerifiyView(APIView):
             user = User.objects.filter(email=email).first()
             token, expire = create_jwt_token_for_user(user.id)
             save_session(user, token, expire)
-            push_notification(user.id, {
-                "title": "Login",
-                "message": SYSTEM_MESSAGES["login_success"]
-            })
+            # push_notification(user.id, {
+            #     "title": "Login",
+            #     "message": SYSTEM_MESSAGES["login_success"]
+            # })
             return Response({"status": "login_success", "token": token})
 
         return Response({"error": "Invalid flow"}, status=400)
@@ -236,10 +236,10 @@ class LoginView(APIView):
             token, expire = create_jwt_token_for_user(user.id)
             save_session(user, token, expire)
 
-            push_notification(user.id, {
-                "title": "Login",
-                "message": SYSTEM_MESSAGES["login_success"]
-            })
+            # push_notification(user.id, {
+            #     "title": "Login",
+            #     "message": SYSTEM_MESSAGES["login_success"]
+            # })
 
             return Response({
                 "status": "success",
@@ -271,10 +271,10 @@ class LoginView(APIView):
 
             token, expire = create_jwt_token_for_user(user.id)
             save_session(user, token, expire)
-            push_notification(user.id, {
-                "title": "Login",
-                "message": SYSTEM_MESSAGES["login_success"]
-            })
+            # push_notification(user.id, {
+            #     "title": "Login",
+            #     "message": SYSTEM_MESSAGES["login_success"]
+            # })
 
             return Response({
                 "status": "success",
@@ -310,10 +310,10 @@ class LoginView(APIView):
             token, expire = create_jwt_token_for_user(user.id)
             save_session(user, token, expire)
 
-            push_notification(user.id, {
-                "title": "Login",
-                "message": SYSTEM_MESSAGES["login_success"]
-            })
+            # push_notification(user.id, {
+            #     "title": "Login",
+            #     "message": SYSTEM_MESSAGES["login_success"]
+            # })
             return Response({
                 "status": "success",
                 "login_by": "email",
