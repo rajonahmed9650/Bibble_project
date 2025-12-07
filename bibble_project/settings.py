@@ -41,7 +41,7 @@ INSTALLED_APPS = [
     'django.contrib.staticfiles',
     'rest_framework',
     'accounts.apps.AccountsConfig',
-    'channels',
+    # 'channels',
     'payments',
     'journey',
     'daily_devotion',
