@@ -20,12 +20,12 @@ from django.conf import settings
 from django.conf.urls.static import static
 
 urlpatterns = [
-    path('admin/',admin.site.urls),
-    path("api/",include("accounts.urls")),
-    path("api/",include("payments.urls")),
-    path("journey/",include("journey.urls")),
-    path("daily_devotion/",include("daily_devotion.urls")),
-    path("quiz/",include("quiz.urls")),
+    path('admin/',admin.site.urls), #done
+    path("api/",include("accounts.urls")),#done
+    path("api/",include("payments.urls")),#done
+    path("journey/",include("journey.urls")),#done
+    path("daily_devotion/",include("daily_devotion.urls")),#done
+    path("quiz/",include("quiz.urls")),#done
     path("progress/",include("userprogress.urls")),
     path("notifications/",include("notifications.urls")),
 ]

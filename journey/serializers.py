@@ -2,6 +2,7 @@ from rest_framework import serializers
 from .models import Journey,JourneyDetails,Journey_icon,Days
 
 class JourneyDetailsSerializer(serializers.ModelSerializer):
+    image = serializers.ImageField(use_url=True)
     class Meta:
         model = JourneyDetails
         fields = ["journey_id","image","details"]
@@ -29,26 +30,20 @@ class JourneyIconSerializer(serializers.ModelSerializer):
 
 
 class DaysSerializer(serializers.ModelSerializer):
-    image = serializers.ImageField(required=False)
+    image = serializers.SerializerMethodField()
 
     class Meta:
         model = Days
         fields = ["id", "journey_id", "name", "image"]
 
-
-    def validate_name(self, value):
-        if Days.objects.filter(name=value).exists():
-            raise serializers.ValidationError("This day name already exists.")
-        return value
-
-    def to_representation(self, instance):
-        rep = super().to_representation(instance)
+    def get_image(self, obj):
         request = self.context.get("request")
 
-        if instance.image and request:
-            rep["image"] = request.build_absolute_uri(instance.image.url)
+        if obj.image:
+            return request.build_absolute_uri(obj.image.url)
 
-        return rep
+        return None
+
 
 
 

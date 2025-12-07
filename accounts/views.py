@@ -16,7 +16,7 @@ from google.auth.transport import requests as google_requests
 from google.oauth2 import id_token as google_id_token
 import jwt as pyjwt
 
-from .utils import generate_otp_code ,save_session,create_jwt_token_for_user,save_otp_cache,delete_otp_cache,get_otp_cache,send_otp_code
+from .utils.utils import generate_otp_code ,save_session,create_jwt_token_for_user,save_otp_cache,delete_otp_cache,get_otp_cache,send_otp_code
 from django.views.decorators.csrf import csrf_exempt
 from django.utils.decorators import method_decorator
 
@@ -25,7 +25,7 @@ from .models import Sessions
 
 from notifications.models import Notification
 from notifications.utils import push_notification
-
+from .utils.messages import SYSTEM_MESSAGES
 
 @method_decorator(csrf_exempt, name="dispatch")
 class SignupView(APIView):
@@ -64,22 +64,16 @@ class SignupView(APIView):
         token, expire = create_jwt_token_for_user(user.id)
         save_session(user, token, expire)
 
-        note = Notification.objects.create(
-            user = user,
-            title = "Welcome",
-            message="Your account has been created successfully and trial started.",
-            notification_type = "system"
-        )
-
-        push_notification(user.id,{
-            "title":note.title,
-            "message":note.message
+        push_notification(user.id, {
+            "title": "Welcome",
+            "message": SYSTEM_MESSAGES["signup_success"]
         })
+
 
 
         # Response
         return Response({
-            "Signup completed successfully."
+            "messge":"Signup completed successfully.",
             "subscription": {
                 "user_id":subscription.user.id,
                 "plan": subscription.current_plan,
@@ -118,10 +112,19 @@ class OTPVerifiyView(APIView):
         otp_type = get_otp_cache(email + "_type")
 
         if not saved_otp:
+            push_notification(None, {
+                "title": "OTP",
+                "message": SYSTEM_MESSAGES["otp_expired"]
+            })
             return Response({"error": "OTP expired"}, status=400)
 
         if saved_otp != otp_input:
+            push_notification(None, {
+                "title": "OTP",
+                "message": SYSTEM_MESSAGES["invalid_otp"]
+            })
             return Response({"error": "Invalid OTP"}, status=400)
+
 
         # REMOVE OTP
         delete_otp_cache(email + "_otp")
@@ -152,17 +155,11 @@ class OTPVerifiyView(APIView):
             token, expire = create_jwt_token_for_user(user.id)
             save_session(user, token, expire)
 
-            note = Notification.objects.create(
-                user=user,
-                title="Verification Successful",
-                message="Your account has been verified.",
-                notification_type="system"
-            )
-
             push_notification(user.id, {
-                "title": note.title,
-                "message": note.message
+                "title": "Verification",
+                "message": SYSTEM_MESSAGES["otp_verified"]
             })
+
 
             return Response({
                 "message": "User verified successfully",
@@ -180,6 +177,10 @@ class OTPVerifiyView(APIView):
 
            
             save_otp_cache(email + "_reset_allowed", True)
+            push_notification(None, {
+                "title": "OTP",
+                "message": SYSTEM_MESSAGES["otp_verified"]
+            })
 
             return Response({
                 "status": "verified",
@@ -192,7 +193,10 @@ class OTPVerifiyView(APIView):
             user = User.objects.filter(email=email).first()
             token, expire = create_jwt_token_for_user(user.id)
             save_session(user, token, expire)
-
+            push_notification(user.id, {
+                "title": "Login",
+                "message": SYSTEM_MESSAGES["login_success"]
+            })
             return Response({"status": "login_success", "token": token})
 
         return Response({"error": "Invalid flow"}, status=400)
@@ -232,18 +236,10 @@ class LoginView(APIView):
             token, expire = create_jwt_token_for_user(user.id)
             save_session(user, token, expire)
 
-            note = Notification.objects.create(
-                user=user,
-                title="Login Successful",
-                message="You have logged in successfully.",
-                notification_type="system"
-            )
-
             push_notification(user.id, {
-                "title": note.title,
-                "message": note.message
+                "title": "Login",
+                "message": SYSTEM_MESSAGES["login_success"]
             })
-
 
             return Response({
                 "status": "success",
@@ -275,18 +271,10 @@ class LoginView(APIView):
 
             token, expire = create_jwt_token_for_user(user.id)
             save_session(user, token, expire)
-            note = Notification.objects.create(
-                user=user,
-                title="Login Successful",
-                message="You have logged in successfully.",
-                notification_type="system"
-            )
-
             push_notification(user.id, {
-                "title": note.title,
-                "message": note.message
+                "title": "Login",
+                "message": SYSTEM_MESSAGES["login_success"]
             })
-
 
             return Response({
                 "status": "success",
@@ -322,19 +310,10 @@ class LoginView(APIView):
             token, expire = create_jwt_token_for_user(user.id)
             save_session(user, token, expire)
 
-            note = Notification.objects.create(
-                user=user,
-                title="Login Successful",
-                message="You have logged in successfully.",
-                notification_type="system"
-            )
-
             push_notification(user.id, {
-                "title": note.title,
-                "message": note.message
+                "title": "Login",
+                "message": SYSTEM_MESSAGES["login_success"]
             })
-
-
             return Response({
                 "status": "success",
                 "login_by": "email",
@@ -371,17 +350,11 @@ class ResetPasswordView(APIView):
 
         delete_otp_cache(email + "_reset_allowed")
 
-        note = Notification.objects.create(
-            user=user,
-            title="Password Reset Successful",
-            message="Your password has been changed.",
-            notification_type="system"
-        )
-
         push_notification(user.id, {
-            "title": note.title,
-            "message": note.message
+            "title": "Password",
+            "message": SYSTEM_MESSAGES["password_reset"]
         })
+
 
         return Response({
             "status": "password_reset_success",
@@ -407,17 +380,11 @@ class ForgotPasswordView(APIView):
 
         send_otp_code(email, otp)
 
-        note = Notification.objects.create(
-            user=user,
-            title="Reset OTP Sent",
-            message="OTP sent to your email for password reset.",
-            notification_type="system"
-        )
-
         push_notification(user.id, {
-            "title": note.title,
-            "message": note.message
+            "title": "OTP",
+            "message": SYSTEM_MESSAGES["otp_sent"]
         })
+
 
 
         return Response({
@@ -452,17 +419,11 @@ class ChangePasswordView(APIView):
         identity.password = make_password(new_password)
         identity.save()
 
-        note = Notification.objects.create(
-            user=user,
-            title="Password Changed",
-            message="Your password updated successfully.",
-            notification_type="system"
-        )
-
         push_notification(user.id, {
-            "title": note.title,
-            "message": note.message
+            "title": "Password",
+            "message": SYSTEM_MESSAGES["password_changed"]
         })
+
 
         return Response({"status": "password_changed"})
     
@@ -480,17 +441,11 @@ class LogoutView(APIView):
         # Remove session from database
         Sessions.objects.filter(token=token).delete()
 
-        note = Notification.objects.create(
-            user=user,
-            title="Logout Successful",
-            message="You have been logged out.",
-            notification_type="system"
-        )
-
         push_notification(user.id, {
-            "title": note.title,
-            "message": note.message
+            "title": "Logout",
+            "message": SYSTEM_MESSAGES["logout_success"]
         })
+
 
         return Response({"status": "logged_out"})
 
@@ -550,17 +505,11 @@ class DisableAccountView(APIView):
         user.is_active = False
         user.save()
 
-        note = Notification.objects.create(
-            user=user,
-            title="Account Disabled",
-            message="Your account has been disabled successfully.",
-            notification_type="system"
-        )
-
         push_notification(user.id, {
-            "title": note.title,
-            "message": note.message
+            "title": "Account",
+            "message": SYSTEM_MESSAGES["account_disabled"]
         })
+
 
         # JWT or token remove (frontend must delete token)
         return Response(

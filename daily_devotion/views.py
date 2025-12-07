@@ -63,6 +63,8 @@ class DailDevotionDetails(APIView):
         item.delete()
         return Response({"message":"Deleted successfully"})
     
+#----------ReflectionSPace
+
 
 class DailyReflectionSpace(APIView):
     permission_classes = [IsAuthenticated]
@@ -179,6 +181,7 @@ class MicroActionListCreate(APIView):
         if serializer.is_valid():
             serializer.save()
             return Response({"message":"Micro Action created successfully"},status=status.HTTP_201_CREATED)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 
 

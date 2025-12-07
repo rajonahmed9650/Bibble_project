@@ -1,0 +1,20 @@
+# payments/utils.py
+
+from django.utils import timezone
+from .models import Subscription
+from notifications.utils import push_notification
+from accounts.utils.messages import SYSTEM_MESSAGES
+
+def deactivate_expired_subscriptions():
+    subs = Subscription.objects.filter(is_active=True)
+
+    for sub in subs:
+        if sub.billing_period_end and sub.billing_period_end < timezone.now():
+            sub.is_active = False
+            sub.current_plan = "none"
+            sub.save()
+
+            push_notification(sub.user.id, {
+                "title": "Subscription Expired",
+                "message": SYSTEM_MESSAGES["subscription_expired"]
+            })

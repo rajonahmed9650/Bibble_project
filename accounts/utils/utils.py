@@ -4,7 +4,7 @@ from django.utils import timezone
 import jwt
 from django.core.cache import cache
 from django.conf import settings
-from .models import Sessions
+from ..models import Sessions
 from django.core.mail import  send_mail
 
 JWT_SECRET = getattr(settings,"JWT_SECRET",settings.SECRET_KEY)
