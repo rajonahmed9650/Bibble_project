@@ -1,8 +1,11 @@
 from rest_framework import serializers
 
 class CreateSubscriptionSerializer(serializers.Serializer):
-    # allowed: "trial", "monthly", "yearly"
-    plan = serializers.ChoiceField(choices=["trial", "monthly", "yearly"])
+    # FRONTEND MUST SEND THIS
+    package_id = serializers.IntegerField()
+
+    # Only allow valid billing choices
+    plan = serializers.ChoiceField(choices=["monthly", "yearly"])
 
 
 

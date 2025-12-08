@@ -5,7 +5,7 @@ from rest_framework import status
 from django.utils import timezone
 from datetime import timedelta
 from django.contrib.auth.hashers import make_password , check_password
-from payments.models import Subscription
+from payments.models import Subscription,Package
 from .models import User , Social_login ,OTP
 from .serializers import*
 from django.db.models import Q
@@ -20,7 +20,7 @@ from .utils.utils import generate_otp_code ,save_session,create_jwt_token_for_us
 from django.views.decorators.csrf import csrf_exempt
 from django.utils.decorators import method_decorator
 
-from rest_framework.permissions import IsAuthenticated
+
 from .models import Sessions
 
 from notifications.models import Notification
@@ -51,12 +51,14 @@ class SignupView(APIView):
             provider_id=user.email,
             password=make_password(data["password"])
         )
-
+        pkg = Package.objects.filter(package_name ="free").first()
         # Create trial subscription
         subscription = Subscription.objects.create(
             user=user,
-            current_plan="trial",
-            trial_end=timezone.now() + timedelta(days=7),
+            package = pkg,
+            current_plan="free",
+            stripe_subscription_id = None,
+            expired_at=timezone.now() + timedelta(days=7),
             is_active=True
         )
 
@@ -77,7 +79,7 @@ class SignupView(APIView):
             "subscription": {
                 "user_id":subscription.user.id,
                 "plan": subscription.current_plan,
-                "trial_end": subscription.trial_end,
+                "expired_at": subscription.expired_at,
                 "is_active": subscription.is_active
             },
             "token": token

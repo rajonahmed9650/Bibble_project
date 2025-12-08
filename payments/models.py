@@ -1,37 +1,82 @@
-# payments/models.py
 from django.db import models
 from django.conf import settings
-from django.utils import timezone
+
+
+class Package(models.Model):
+    PACKAGE_CHOICES = [
+        ("free", "Free"),
+        ("premium", "Premium"),
+    ]
+
+    package_name = models.CharField(
+        max_length=10,
+        choices=PACKAGE_CHOICES,
+        default="free"
+    )
+
+    #  Correct money field
+    monthly_price = models.DecimalField(
+        max_digits=7,
+        decimal_places=2,
+        default=0
+    )
+
+    yearly_price = models.DecimalField(
+        max_digits=7,
+        decimal_places=2,
+        default=0
+    )
+
+    # Correct Stripe Price ID fields
+    stripe_monthly_price_id = models.CharField(
+        max_length=255,
+        blank=True,
+        null=True
+    )
+
+    stripe_yearly_price_id = models.CharField(
+        max_length=255,
+        blank=True,
+        null=True
+    )
+
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        return self.package_name
+
 
 class Subscription(models.Model):
     PLAN_CHOICES = [
-        ("trial", "Trial"),
+        ("free", "Free"),
         ("monthly", "Monthly"),
         ("yearly", "Yearly"),
         ("none", "None"),
     ]
 
     user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE)
-    stripe_customer_id = models.CharField(max_length=200, null=True, blank=True)
-    stripe_subscription_id = models.CharField(max_length=200, null=True, blank=True)
 
-    current_plan = models.CharField(max_length=20, choices=PLAN_CHOICES, default="none")
+    package = models.ForeignKey(
+        Package,
+        on_delete=models.SET_NULL,  # better than CASCADE
+        null=True,
+        blank=True
+    )
 
-    # Trial expiry
-    trial_end = models.DateTimeField(null=True, blank=True)
+    stripe_customer_id = models.CharField(max_length=255, null=True, blank=True)
+    stripe_subscription_id = models.CharField(max_length=255, null=True, blank=True)
 
-    # Paid plan expiry (Stripe billing period end)
-    billing_period_end = models.DateTimeField(null=True, blank=True)
+    current_plan = models.CharField(
+        max_length=20,
+        choices=PLAN_CHOICES,
+        default="none"
+    )
+    expired_at = models.DateTimeField(null=True ,blank=True)
+
 
     is_active = models.BooleanField(default=False)
 
     created_at = models.DateTimeField(auto_now_add=True)
 
-    def is_expired(self):
-        """Check subscription expired status"""
-        if self.billing_period_end and self.billing_period_end < timezone.now():
-            return True
-        return False
-
     def __str__(self):
-        return f"{self.user} - {self.current_plan} ({'active' if self.is_active else 'inactive'})"
+        return f"{self.user} - {self.current_plan}"

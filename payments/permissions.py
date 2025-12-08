@@ -2,6 +2,7 @@ from rest_framework.permissions import BasePermission
 from django.utils import timezone
 from payments.models import Subscription
 
+
 class HasActiveSubscription(BasePermission):
 
     message = "Your subscription is inactive. Please buy a plan."
@@ -11,14 +12,25 @@ class HasActiveSubscription(BasePermission):
             return False
         
         sub = Subscription.objects.filter(user=request.user).first()
+
+        if not sub:
+            self.message = "No subscription found."
+            return False
+
         now = timezone.now()
 
-        # Trial active
-        if sub and sub.current_plan == "trial" and sub.trial_end and sub.trial_end > now:
-            return True
+        # FREE trial (7 days)
+        if sub.current_plan == "free":
+            if sub.expired_at and sub.expired_at > now:
+                return True
+            self.message = "Free trial expired. Buy premium."
+            return False
 
-        # Paid active
-        if sub and sub.current_plan in ["monthly","yearly"] and sub.billing_period_end and sub.billing_period_end > now:
-            return True
+        # PREMIUM plan
+        if sub.current_plan in ["monthly", "yearly"]:
+            if sub.expired_at and sub.expired_at > now:
+                return True
+            self.message = "Premium expired. Renew subscription."
+            return False
 
         return False

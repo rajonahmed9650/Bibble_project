@@ -8,13 +8,14 @@ from rest_framework.parsers import MultiPartParser, FormParser
 
 from .models import Journey,JourneyDetails,Journey_icon,Days
 from .serializers import JourneySerilzers,JourneyDetailsSerializer,Journey_icon,DaysSerializer,JourneyIconSerializer
+from payments.permissions import HasActiveSubscription
 
 
 # JOURNEY VIEW
 
 
 class JourneyListCreateAPIView(APIView):
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsAuthenticated,HasActiveSubscription]
     def get(self, request):
         journeys = Journey.objects.all()
         serializer = JourneySerilzers(journeys, many=True, context={"request": request})

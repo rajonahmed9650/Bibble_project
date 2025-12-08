@@ -1,100 +1,97 @@
-# payments/views.py
-
 import stripe
+from datetime import timedelta, datetime
 from django.conf import settings
 from django.utils import timezone
+from django.utils.decorators import method_decorator
+from django.views.decorators.csrf import csrf_exempt
 
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated, AllowAny
 
-from .models import Subscription
-from notifications.utils import push_notification
-from accounts.utils.messages import SYSTEM_MESSAGES
-
-from datetime import datetime, timedelta, timezone as dt_timezone   
+from .models import Subscription, Package
 
 
 stripe.api_key = settings.STRIPE_SECRET_KEY
 
 
+# =========================
+#  CHECKOUT SESSION
+# =========================
 class CreateCheckoutSession(APIView):
     permission_classes = [IsAuthenticated]
 
     def post(self, request):
         user = request.user
-        plan = request.data.get("plan")
+        plan = request.data.get("plan")        # "monthly" or "yearly"
+        package_id = request.data.get("package_id")
 
-        # 1️ VALIDATE PLAN
+        # get package
+        pkg = Package.objects.filter(id=package_id).first()
+        if not pkg:
+            return Response({"error": "Invalid package"}, status=400)
+
+        # select stripe price id
         if plan == "monthly":
-            price = settings.STRIPE_MONTHLY_PRICE
+            price_id = pkg.stripe_monthly_price_id
         elif plan == "yearly":
-            price = settings.STRIPE_YEARLY_PRICE
+            price_id = pkg.stripe_yearly_price_id
         else:
             return Response({"error": "Invalid plan"}, status=400)
 
-        # 2️ GET OR CREATE SUBSCRIPTION
+        # subscription row
         sub, created = Subscription.objects.get_or_create(user=user)
 
-        # 3 BLOCK IF NOT EXPIRED
-        if sub.billing_period_end and sub.billing_period_end > timezone.now():
-            push_notification(user.id, {
-                "title": "Subscription Active",
-                "message": SYSTEM_MESSAGES["subscription_blocked"]
-                           + str(sub.billing_period_end)
-            })
-
-            return Response({
-                "error": "Active subscription exists",
-                "expires_on": sub.billing_period_end,
-                "can_renew": False
-            }, status=403)
-
-        # 4️ CREATE STRIPE CUSTOMER
+        # create stripe customer only if needed
         if not sub.stripe_customer_id:
             customer = stripe.Customer.create(email=user.email)
             sub.stripe_customer_id = customer.id
             sub.save()
 
-        # 5️ CREATE CHECKOUT SESSION
+        # create checkout
         session = stripe.checkout.Session.create(
             mode="subscription",
             customer=sub.stripe_customer_id,
-            line_items=[{"price": price, "quantity": 1}],
-            metadata={"user_id": user.id, "plan": plan},
-            success_url="http://127.0.0.1:8000/",
-            cancel_url="http://127.0.0.1:8000/",
+            line_items=[{"price": price_id, "quantity": 1}],
+            metadata={
+                "user_id": user.id,
+                "package_id": pkg.id,
+                "plan": plan
+            },
+            success_url="http://localhost:8000/success/",
+            cancel_url="http://localhost:8000/cancel/",
         )
 
-        return Response({
-            "checkout_url": session.url,
-            "can_renew": True
-        })
+        return Response({"checkout_url": session.url}, status=200)
 
 
+# =========================
+#  STRIPE WEBHOOK
+# =========================
+@method_decorator(csrf_exempt, name="dispatch")
 class StripeWebhook(APIView):
     permission_classes = [AllowAny]
     authentication_classes = []
-    parser_classes = []   # must disable DRF parser
+    parser_classes = []
 
     def post(self, request):
         payload = request.body
-        sig_header = request.META.get("HTTP_STRIPE_SIGNATURE")
+        sig = request.META.get("HTTP_STRIPE_SIGNATURE")
         secret = settings.STRIPE_WEBHOOK_SECRET
 
         try:
-            event = stripe.Webhook.construct_event(
-                payload, sig_header, secret
-            )
+            event = stripe.Webhook.construct_event(payload, sig, secret)
         except Exception:
-            return Response({"error": "Invalid Stripe signature"}, status=400)
+            return Response({"error": "invalid signature"}, status=400)
 
-        event_type = event.get("type")
-        data = event.get("data", {}).get("object", {})
+        data = event["data"]["object"]
+        event_type = event["type"]
 
-        # ========================================================
-        # 1PAYMENT SUCCESS
-        # ========================================================
+        
+
+        # ===================================
+        # CHECKOUT COMPLETED (FIRST PAYMENT)
+        # ===================================
         if event_type == "checkout.session.completed":
             customer_id = data.get("customer")
             subscription_id = data.get("subscription")
@@ -104,91 +101,71 @@ class StripeWebhook(APIView):
             ).first()
 
             if not sub:
-                return Response({"status": "subscription-not-found"}, status=200)
+                return Response({"status": "no-local-subscription"}, status=200)
 
-            # fallback if Stripe doesn't send subscription id
-            if not subscription_id:
-                subs = stripe.Subscription.list(customer=customer_id, limit=1)
-                if subs.data:
-                    subscription_id = subs.data[0].id
+            plan = data.get("metadata", {}).get("plan")
+            pkg_id = data.get("metadata", {}).get("package_id")
+            pkg = Package.objects.get(id=pkg_id)
 
-            stripe_sub = stripe.Subscription.retrieve(subscription_id)
+            now = timezone.now()
 
-            # PLAN DETECT
-            price_id = None
-            items = stripe_sub.get("items", {}).get("data", [])
-            if items:
-                price_id = items[0]["price"]["id"]
+            # manual expiry logic
+            if plan == "monthly":
+                sub.expired_at = now + timedelta(days=30)
+            elif plan == "yearly":
+                sub.expired_at = now + timedelta(days=365)
 
-            if price_id == settings.STRIPE_MONTHLY_PRICE:
-                sub.current_plan = "monthly"
-            elif price_id == settings.STRIPE_YEARLY_PRICE:
-                sub.current_plan = "yearly"
-            else:
-                sub.current_plan = "monthly"
-
-            # PERIOD DETECT (safe)
-            current_period_end = getattr(stripe_sub, "current_period_end", None)
-            if not current_period_end:
-                current_period_end = getattr(
-                    stripe_sub, "billing_cycle_anchor", None
-                )
-
-            if current_period_end:
-                sub.billing_period_end = datetime.fromtimestamp(
-                    current_period_end,
-                    tz=dt_timezone.utc    
-                )
-            else:
-                sub.billing_period_end = timezone.now() + timedelta(days=30)
-
-            sub.is_active = True
+            sub.package = pkg
+            sub.current_plan = plan
             sub.stripe_subscription_id = subscription_id
+            sub.is_active = True
             sub.save()
 
-            push_notification(sub.user.id, {
-                "title": "Subscription Started",
-                "message": f"Active until {sub.billing_period_end}"
-            })
+            return Response({"status": "premium-activated"}, status=200)
 
-            return Response({"status": "subscription-activated"}, status=200)
-
-        # ========================================================
-        # 2️PAYMENT FAILED
-        # ========================================================
-        if event_type == "invoice.payment_failed":
+        # ===================================
+        # RECURRING PAYMENT SUCCESS
+        # ===================================
+        if event_type == "invoice.payment_succeeded":
             subscription_id = data.get("subscription")
+
             sub = Subscription.objects.filter(
                 stripe_subscription_id=subscription_id
             ).first()
 
-            if sub:
-                sub.is_active = False
-                sub.save()
+            if not sub:
+                return Response({"status": "not-found"}, status=200)
 
-                push_notification(sub.user.id, {
-                    "title": "Payment Failed",
-                    "message": SYSTEM_MESSAGES["payment_failed"]
-                })
+            stripe_sub = stripe.Subscription.retrieve(subscription_id)
+            period_end = stripe_sub.current_period_end
 
-        # ========================================================
-        # 3️ SUBSCRIPTION CANCELLED
-        # ========================================================
+            sub.expired_at = datetime.fromtimestamp(period_end, tz=timezone.utc)
+            sub.save()
+
+            return Response({"status": "renewed"}, status=200)
+
+        # ===================================
+        # CANCEL SUBSCRIPTION
+        # ===================================
         if event_type == "customer.subscription.deleted":
             subscription_id = data.get("id")
+
             sub = Subscription.objects.filter(
                 stripe_subscription_id=subscription_id
             ).first()
 
-            if sub:
-                sub.current_plan = "none"
-                sub.is_active = False
-                sub.billing_period_end = None
-                sub.save()
+            if not sub:
+                return Response({"status": "no-local"}, status=200)
 
-                push_notification(sub.user.id, {
-                    "title": "Subscription Cancelled",
-                    "message": SYSTEM_MESSAGES["subscription_cancelled"]
-                })
+            free_pkg = Package.objects.get(package_name="free")
+
+            sub.current_plan = "free"
+            sub.package = free_pkg
+            sub.stripe_subscription_id = None
+            sub.expired_at = timezone.now() + timedelta(days=7)
+            sub.is_active = True
+            sub.save()
+
+            return Response({"status": "cancelled → free"}, status=200)
 
         return Response({"status": "ok"}, status=200)
