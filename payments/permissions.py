@@ -1,7 +1,7 @@
 from rest_framework.permissions import BasePermission
 from django.utils import timezone
 from payments.models import Subscription
-
+from .utils import deactivate_expired_subscriptions
 
 class HasActiveSubscription(BasePermission):
 
@@ -10,6 +10,7 @@ class HasActiveSubscription(BasePermission):
     def has_permission(self, request, view):
         if not request.user or not request.user.is_authenticated:
             return False
+        deactivate_expired_subscriptions()
         
         sub = Subscription.objects.filter(user=request.user).first()
 

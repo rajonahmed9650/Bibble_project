@@ -24,7 +24,8 @@ from django.utils.decorators import method_decorator
 from .models import Sessions
 
 from notifications.models import Notification
-from notifications.utils import push_notification
+from notifications.utils import create_and_send_notification
+
 from .utils.messages import SYSTEM_MESSAGES
 
 @method_decorator(csrf_exempt, name="dispatch")
@@ -65,12 +66,6 @@ class SignupView(APIView):
         # Create token
         token, expire = create_jwt_token_for_user(user.id)
         save_session(user, token, expire)
-
-        # push_notification(user.id, {
-        #     "title": "Welcome",
-        #     "message": SYSTEM_MESSAGES["signup_success"]
-        # })
-
 
 
         # Response
@@ -114,17 +109,11 @@ class OTPVerifiyView(APIView):
         otp_type = get_otp_cache(email + "_type")
 
         if not saved_otp:
-            push_notification(None, {
-                "title": "OTP",
-                "message": SYSTEM_MESSAGES["otp_expired"]
-            })
+
             return Response({"error": "OTP expired"}, status=400)
 
         if saved_otp != otp_input:
-            push_notification(None, {
-                "title": "OTP",
-                "message": SYSTEM_MESSAGES["invalid_otp"]
-            })
+
             return Response({"error": "Invalid OTP"}, status=400)
 
 
@@ -179,10 +168,7 @@ class OTPVerifiyView(APIView):
 
            
             save_otp_cache(email + "_reset_allowed", True)
-            push_notification(None, {
-                "title": "OTP",
-                "message": SYSTEM_MESSAGES["otp_verified"]
-            })
+ 
 
             return Response({
                 "status": "verified",
@@ -352,10 +338,7 @@ class ResetPasswordView(APIView):
 
         delete_otp_cache(email + "_reset_allowed")
 
-        push_notification(user.id, {
-            "title": "Password",
-            "message": SYSTEM_MESSAGES["password_reset"]
-        })
+
 
 
         return Response({
@@ -381,11 +364,6 @@ class ForgotPasswordView(APIView):
         save_otp_cache(email + "_type", "forgot_password")
 
         send_otp_code(email, otp)
-
-        push_notification(user.id, {
-            "title": "OTP",
-            "message": SYSTEM_MESSAGES["otp_sent"]
-        })
 
 
 
@@ -421,10 +399,7 @@ class ChangePasswordView(APIView):
         identity.password = make_password(new_password)
         identity.save()
 
-        push_notification(user.id, {
-            "title": "Password",
-            "message": SYSTEM_MESSAGES["password_changed"]
-        })
+
 
 
         return Response({"status": "password_changed"})
@@ -443,10 +418,6 @@ class LogoutView(APIView):
         # Remove session from database
         Sessions.objects.filter(token=token).delete()
 
-        push_notification(user.id, {
-            "title": "Logout",
-            "message": SYSTEM_MESSAGES["logout_success"]
-        })
 
 
         return Response({"status": "logged_out"})
@@ -507,10 +478,7 @@ class DisableAccountView(APIView):
         user.is_active = False
         user.save()
 
-        push_notification(user.id, {
-            "title": "Account",
-            "message": SYSTEM_MESSAGES["account_disabled"]
-        })
+ 
 
 
         # JWT or token remove (frontend must delete token)

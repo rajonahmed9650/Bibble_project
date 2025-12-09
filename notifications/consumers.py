@@ -2,17 +2,27 @@ import json
 from channels.generic.websocket import AsyncWebsocketConsumer
 
 class NotificationConsumer(AsyncWebsocketConsumer):
-
     async def connect(self):
-        user_id = self.scope["url_route"]["kwargs"]["user_id"]
-        self.group_name = f"notifications_{user_id}"
+        self.user_id = self.scope["url_route"]["kwargs"]["user_id"]
+        self.group_name = f"notifications_{self.user_id}"
 
         await self.channel_layer.group_add(self.group_name, self.channel_name)
         await self.accept()
 
     async def disconnect(self, close_code):
-        if hasattr(self, "group_name"):   # 🔥 SAFE FIX
-            await self.channel_layer.group_discard(self.group_name, self.channel_name)
+        await self.channel_layer.group_discard(self.group_name, self.channel_name)
+
+    async def receive(self, text_data):
+        print("RECEIVED FROM CLIENT:", text_data)  # Debug
+        await self.send(text_data=json.dumps({
+            "message": text_data
+        }))
 
     async def send_notification(self, event):
-        await self.send(text_data=json.dumps(event["message"]))
+        await self.send(text_data=json.dumps({
+            "id": event.get("id"),
+            "title": event.get("title"),
+            "message": event.get("message"),
+            "notification_type": event.get("notification_type"),
+            "created_at": event.get("created_at"),
+        }))

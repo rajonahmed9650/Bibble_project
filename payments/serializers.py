@@ -5,7 +5,7 @@ class CreateSubscriptionSerializer(serializers.Serializer):
     package_id = serializers.IntegerField()
 
     # Only allow valid billing choices
-    plan = serializers.ChoiceField(choices=["monthly", "yearly"])
+    plan = serializers.ChoiceField(choices=["free","monthly", "yearly"])
 
 
 

@@ -27,11 +27,44 @@ class CreateCheckoutSession(APIView):
         package_id = request.data.get("package_id")
 
         # get package
-        pkg = Package.objects.filter(id=package_id).first()
-        if not pkg:
-            return Response({"error": "Invalid package"}, status=400)
+        try:
+            package_id = int(package_id)
+        except:
+            return Response({"error":"Invalid package id type"},status=400)
+        try:
+            pkg = Package.objects.get(id=package_id)
+        except Package.DoesNotExist:
+            return Response({"error":"Invalid package"},status=400)
+        pkg_name = pkg.package_name.lower()
 
+        if plan in ["monthly","yearly"] and pkg_name == "free":
+            return Response({
+                "status":"blocked",
+                "message":"You cannot choose paid plan for a free package."
+            },status=403)
+        
+        if plan == "free" and pkg_name != "free":
+            return Response({
+                "status":"blocked",
+                "message":"Free plan is allowed only for free package."
+            },status=403)
+
+        sub,created = Subscription.objects.get_or_create(user=user)
         # select stripe price id
+        if plan== "free":
+            if sub.expired_at and timezone.now() < sub.expired_at:     
+                remaining = (sub.expired_at - timezone.now()).days
+                return Response({
+                    "status":"trial-active",
+                    "message":f"{remaining} days free subscription active"
+                },status=200)
+            
+            return Response({
+                "status":"trial-exprired",
+                "message":"Trial finished. Please purchase a subcription"
+            })
+            
+
         if plan == "monthly":
             price_id = pkg.stripe_monthly_price_id
         elif plan == "yearly":
