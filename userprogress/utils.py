@@ -1,56 +1,26 @@
-from journey.models import PersonaJourney, Journey, Days
-from userprogress.models import UserJourneyProgress
+from .models import UserJourneyProgress, Days,UserDayProgress
 
 def get_current_day(user):
+    """
+    Returns active journey_id, day_id and global day count.
+    """
 
-    # ----- 1) USER CATEGORY CHECK -----
-    if not user.category:
-        return None, None, None
-
-    # ----- 2) INITIAL USER PROGRESS -----
-    progress = UserJourneyProgress.objects.filter(user=user).first()
-
-    # New user: no progress exists
-    if not progress:
-
-        # SAFE persona lookup
-        persona = PersonaJourney.objects.filter(persona=user.category).first()
-        if not persona:
-            # No persona config in DB yet
-            return None, None, None
-
-        # Create progress safely
-        progress = UserJourneyProgress.objects.create(
-            user=user,
-            completed_days=0,
-            journey_id=None,   # optional, depends on your model
-            completed=False
-        )
-
-    # ----- 3) GLOBAL DAY -----
-    global_day = progress.completed_days + 1  # 1–56
-
-    # ----- 4) PERSONA SAFE CHECK AGAIN -----
-    persona = PersonaJourney.objects.filter(persona=user.category).first()
-    if not persona:
-        return None, None, None
-
-    sequence = persona.sequence  # example: [1,6,5,8,4,2,7,3]
-
-    # ----- 5) WHICH JOURNEY -----
-    index = (global_day - 1) // 7
-    if index >= len(sequence):
-        return None, None, None
-
-    journey_id = sequence[index]
-
-    # ----- 6) WHICH DAY -----
-    order = (global_day - 1) % 7 + 1  # 1–7
-
-    # ----- 7) GET DAY OBJECT -----
-    day = Days.objects.filter(
-        journey_id=journey_id,
-        order=order
+    progress = UserJourneyProgress.objects.filter(
+        user=user,
+        completed=False
     ).first()
 
-    return journey_id, (day.id if day else None), global_day
+    if not progress:
+        return None, None, None
+
+    journey_id = progress.journey_id
+    completed_days = progress.completed_days
+    next_day_number = (completed_days % 7) + 1
+
+    day_obj = Days.objects.filter(journey_id=journey_id, order=next_day_number).first()
+
+    if not day_obj:
+        return journey_id, None, next_day_number
+
+    return journey_id, day_obj.id, next_day_number
+

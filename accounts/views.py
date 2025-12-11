@@ -20,65 +20,65 @@ from .utils.utils import generate_otp_code ,save_session,create_jwt_token_for_us
 from django.views.decorators.csrf import csrf_exempt
 from django.utils.decorators import method_decorator
 
-
+import time
 from .models import Sessions
 
-from notifications.models import Notification
-from notifications.utils import create_and_send_notification
-
-from .utils.messages import SYSTEM_MESSAGES
+from notifications.notification_sender import send_ws_notification
 
 @method_decorator(csrf_exempt, name="dispatch")
 class SignupView(APIView):
     permission_classes = [AllowAny]
 
     def post(self, request):
+
         ser = SignupSerializer(data=request.data)
         ser.is_valid(raise_exception=True)
         data = ser.validated_data
 
-        # Create user
+        # CREATE USER
         user = User.objects.create_user(
             full_name=data["full_name"],
             email=data["email"],
             phone=data["phone"],
             password=data["password"]
         )
+     
 
-        # Social login create
+        # ✅ CREATE SOCIAL LOGIN ENTRY (IMPORTANT!)
         Social_login.objects.create(
             user=user,
             provider="email",
             provider_id=user.email,
-            password=make_password(data["password"])
+            password=make_password(data["password"])   # hashed password
         )
-        pkg = Package.objects.filter(package_name ="free").first()
-        # Create trial subscription
+
+        # CREATE SUBSCRIPTION (FREE PLAN)
         subscription = Subscription.objects.create(
             user=user,
-            package = pkg,
+            package=Package.objects.filter(package_name="free").first(),
             current_plan="free",
-            stripe_subscription_id = None,
             expired_at=timezone.now() + timedelta(days=7),
             is_active=True
         )
 
-        # Create token
+        # CREATE TOKEN
         token, expire = create_jwt_token_for_user(user.id)
         save_session(user, token, expire)
 
-
-        # Response
+        # WAIT 1 SECOND → ALLOW FRONTEND TO CONNECT WS
         return Response({
-            "messge":"Signup completed successfully.",
+            "user_id": user.id,
+            "message": "Signup completed successfully.",
             "subscription": {
-                "user_id":subscription.user.id,
+                "user_id": subscription.user.id,
                 "plan": subscription.current_plan,
                 "expired_at": subscription.expired_at,
                 "is_active": subscription.is_active
             },
             "token": token
         }, status=201)
+
+
 
 class ProfileView(APIView):
     authentication_classes = [CustomJWTAuthentication]
@@ -342,19 +342,23 @@ class ResetPasswordView(APIView):
 
 
         return Response({
-            "status": "password_reset_success",
             "message": "Password reset successfully."
         })
   
+from rest_framework.permissions import AllowAny
+from rest_framework.authentication import BaseAuthentication
+
 class ForgotPasswordView(APIView):
+    authentication_classes = []  # disable JWT + Basic + Session
+    permission_classes = [AllowAny]
+
     def post(self, request):
         ser = ForgotPasswordSerializer(data=request.data)
         ser.is_valid(raise_exception=True)
-        data = ser.validated_data
 
-        email = data["email"]
+        email = ser.validated_data["email"]
 
-        user = User.objects.filter(email=email).first()
+        user = User.objects.filter(email__iexact=email).first()
         if not user:
             return Response({"error": "User not found"}, status=400)
 
@@ -365,13 +369,11 @@ class ForgotPasswordView(APIView):
 
         send_otp_code(email, otp)
 
-
-
         return Response({
             "status": "otp_sent",
-            "message": "OTP sent to your email.",
             "email": email
         })
+
 
 
         
@@ -417,9 +419,6 @@ class LogoutView(APIView):
 
         # Remove session from database
         Sessions.objects.filter(token=token).delete()
-
-
-
         return Response({"status": "logged_out"})
 
 import requests

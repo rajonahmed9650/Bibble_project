@@ -6,6 +6,12 @@ class QuizAnswerOptionAdmin(admin.ModelAdmin):
     list_display = ("id","option",)
     ordering = ("id",)
 
-admin.site.register(DailyQuiz)
 admin.site.register(QuizAnswerOption,QuizAnswerOptionAdmin)
+class DaliyQuizAdmin(admin.ModelAdmin):
+    list_display = ("id","question")
+    ordering = ("id",)
+admin.site.register(DailyQuiz,DaliyQuizAdmin)
+
+
+
 admin.site.register(QuizAnswer)

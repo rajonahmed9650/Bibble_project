@@ -34,7 +34,7 @@ class DaysSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Days
-        fields = ["id", "journey_id", "name", "image"]
+        fields = ["id", "journey_id", "name", "image","order"]
 
     def get_image(self, obj):
         request = self.context.get("request")
@@ -50,13 +50,13 @@ class DaysSerializer(serializers.ModelSerializer):
 
 
 class JourneySerilzers(serializers.ModelSerializer):
-    days = DaysSerializer(many=True, read_only=True)
+    
     icons = JourneyIconSerializer(many=True, read_only=True)
-    details = JourneyDetailsSerializer(many=True, read_only=True)
+    
 
     class Meta:
         model = Journey
-        fields = ["id", "name", "days", "icons", "details"]
+        fields = ["id", "name","icons",]
     def validate_name(self, value):
         if Journey.objects.filter(name=value).exists():
             raise serializers.ValidationError("This Jouney  already exists.")

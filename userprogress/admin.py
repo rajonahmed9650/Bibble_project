@@ -4,4 +4,9 @@ from .models import UserJourneyProgress,UserDayProgress
 
 
 admin.site.register(UserJourneyProgress)
-admin.site.register(UserDayProgress)
+
+class UserDayProgressAdmin(admin.ModelAdmin):
+    list_display = ("id","user")
+    ordering = ("id",)
+
+admin.site.register(UserDayProgress,UserDayProgressAdmin)

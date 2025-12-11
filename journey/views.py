@@ -237,7 +237,42 @@ class JourneyIconAPiView(APIView):
 
 
     
+from .models import PersonaJourney
+from .serializers import JourneySerilzers
 
 
 
+class UserJourneySequenceView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        user = request.user
+        
+        # Step 1: check if user has a categorize
+        if not user.category:
+            return Response({"error": "User category not assigned yet!"}, status=400)
+
+        # Step 2: find persona sequence from PersonaJourney table
+        try:
+            persona = PersonaJourney.objects.get(persona=user.category)
+        except PersonaJourney.DoesNotExist:
+            return Response({"error": "No matching PersonaJourney found!"}, status=404)
+
+        sequence_list = persona.sequence   # Example: [1,6,5,8,4,2,7,3]
+
+        # Step 3: fetch all journeys from DB
+        journeys = Journey.objects.filter(id__in=sequence_list)
+
+        # Step 4: order according to the sequence_list
+        ordered_journeys = sorted(journeys, key=lambda j: sequence_list.index(j.id))
+
+        # Step 5: serialize
+        serializer = JourneySerilzers(ordered_journeys, many=True, context={"request": request})
+
+
+        return Response({
+            "user": user.username,
+            "category": user.category,
+            "journeys": serializer.data
+        })
 

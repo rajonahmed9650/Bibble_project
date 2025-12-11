@@ -27,7 +27,7 @@ urlpatterns = [
     path("daily_devotion/",include("daily_devotion.urls")),#done
     path("quiz/",include("quiz.urls")),#done
     path("progress/",include("userprogress.urls")),
-    path("notifications/",include("notifications.urls")),
+    path("api/",include("notifications.urls")),
 ]
 
 

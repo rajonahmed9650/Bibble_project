@@ -36,13 +36,12 @@ class DailyPrayerSerializer(serializers.ModelSerializer):
         fields = ["id", "journey_id", "day_id", "prayer", "audio_url"]
 
     def get_audio_url(self, obj):
-        request = self.context.get("request", None)
+        request = self.context.get("request")
 
         if obj.audio:
             if request:
                 return request.build_absolute_uri(obj.audio.url)
-            else:
-                return obj.audio.url  # fallback
+            return obj.audio.url  
         return None
 
     def validate(self, data):

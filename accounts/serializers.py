@@ -52,6 +52,7 @@ class OTPVerifySerializer(serializers.Serializer):
     otp = serializers.CharField()
 
 class ForgotPasswordSerializer(serializers.Serializer):
+    
     email = serializers.EmailField()
 
 class ResetPasswordSerializer(serializers.Serializer):

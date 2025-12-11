@@ -12,4 +12,9 @@ class DailyPrayerAdmin(admin.ModelAdmin):
 admin.site.register(DailyDevotion,DailyDevotionAdmin)
 
 admin.site.register(DailyPrayer,DailyPrayerAdmin)
-admin.site.register(MicroAction)
+
+class MicroActionAdmin(admin.ModelAdmin):
+    list_display = ("id","action")
+    ordering =("id",)
+
+admin.site.register(MicroAction,MicroActionAdmin)

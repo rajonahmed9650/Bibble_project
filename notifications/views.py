@@ -1,38 +1,18 @@
-from django.shortcuts import render
-
 from rest_framework.views import APIView
-from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
+from .notification_sender import send_ws_notification
 
-from .models import Notification
-from .serializers import NotificationSerializer
+class TestNotificationView(APIView):
+    def post(self, request):
+        user_id = request.data.get("user_id")
+        print("🔥 Trigger called for user:", user_id)
 
+        send_ws_notification(
+            user_id=user_id,
+            title="Welcome!",
+            message="Test notification working!",
+            notification_type="test"
+        )
 
-class NotificationListView(APIView):
-    permission_classes = [IsAuthenticated]
-
-    def get(self, request):
-        user = request.user
-        noti = Notification.objects.filter(user=user)
-        serializer = NotificationSerializer(noti, many=True)
-        return Response(serializer.data)
-
-
-class MarkNotificationRead(APIView):
-    def post(self, request, notification_id):
-        user = request.user
-
-        try:
-            note = Notification.objects.get(id=notification_id, user=user)
-        except Notification.DoesNotExist:
-            return Response({"error": "Not found"}, status=404)
-
-        # Mark read
-        note.is_read = True
-        note.save()
-
-        # DELETE automatically
-        note.delete()
-
-        return Response({"message": "Notification marked read and deleted"})
+        return Response({"status": "sent"})
 
