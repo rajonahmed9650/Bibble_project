@@ -411,15 +411,30 @@ class LogoutView(APIView):
     permission_classes = [IsAuthenticated]
 
     def post(self, request):
-        user = request.user
-        token = request.auth  # current JWT
+        # 1) Read email from POST body
+        email = request.data.get("email")
+
+        if not email:
+            return Response({"error": "Email is required"}, status=400)
+
+        # 2) Check if email belongs to logged-in user
+        if request.user.email != email:
+            return Response({"error": "Email does not match logged-in user"}, status=400)
+
+        # 3) Find token (JWT)
+        token = request.auth  
 
         if not token:
-            return Response({"error": "No token found"}, status=400)
+            return Response({"error": "No active token found"}, status=400)
 
-        # Remove session from database
+        # 4) Delete session by token
         Sessions.objects.filter(token=token).delete()
-        return Response({"status": "logged_out"})
+
+        return Response({
+            "status": "logged_out",
+            "email": email
+        }, status=200)
+
 
 import requests
 
