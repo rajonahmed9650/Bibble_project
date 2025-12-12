@@ -239,11 +239,11 @@ class JourneyIconAPiView(APIView):
     
 from .models import PersonaJourney
 from .serializers import JourneySerilzers
-
+from payments.permissions import HasActiveSubscription
 
 
 class UserJourneySequenceView(APIView):
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsAuthenticated,HasActiveSubscription]
 
     def get(self, request):
         user = request.user

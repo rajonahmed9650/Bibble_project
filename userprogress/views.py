@@ -1,16 +1,3 @@
-from rest_framework.views import APIView
-from rest_framework.response import Response
-from rest_framework.permissions import IsAuthenticated
-from rest_framework import status
-
-from userprogress.utils import get_current_day
-from userprogress.models import UserDayProgress, UserJourneyProgress
-from journey.models import PersonaJourney, Journey, Days
-
-from daily_devotion.serializers import DailyDevotionSerializer, DailyPrayerSerializer, MicroActionSerializer
-from daily_devotion.models import DailyDevotion, DailyPrayer, MicroAction
-
-from quiz.models import DailyQuiz
 
 
 # =======================
@@ -20,9 +7,10 @@ from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
 
-from userprogress.utils import get_current_day
-from userprogress.models import UserJourneyProgress
-from journey.models import PersonaJourney, Journey, Days
+from .utils import get_current_day
+from .models import UserDayProgress,UserJourneyProgress
+from journey.models import PersonaJourney, Journey, Days,JourneyDetails
+from journey.serializers import JourneyDetailsSerializer
 
 from daily_devotion.serializers import (
     DailyDevotionSerializer,
@@ -82,6 +70,7 @@ class TodayView(APIView):
 
         # 5) Fetch Current day
         day = Days.objects.filter(id=day_id).first()
+        details = JourneyDetails.objects.filter(journey_id=progress.journey.id)
 
         # 6) Fetch All day-content
         devotion = DailyDevotion.objects.filter(day_id_id=day_id).first()
@@ -97,6 +86,7 @@ class TodayView(APIView):
             "journey": {
                 "id": progress.journey.id,
                 "name": progress.journey.name,
+                "details": JourneyDetailsSerializer(details, many=True, context={"request": request}).data
             },
             "day": {
                 "id": day.id,

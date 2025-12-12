@@ -18,7 +18,7 @@ class DailyQuizCreateSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = DailyQuiz
-        fields = ["journey_id", "days_id", "question", "options"]
+        fields = ["id","journey_id", "days_id", "question", "options"]
 
     # ---------------------------
     # VALIDATION AREA
@@ -143,5 +143,5 @@ class MultipleQuizAnswerSubmitSerializer(serializers.Serializer):
         return {
             "user_id": user.id,
             "total_points_for_day": day_points,
-            "answers_saved": len(validated)
+            # "answers_saved": len(validated)
         }

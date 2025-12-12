@@ -5,7 +5,10 @@ from .models import Journey,Journey_icon,JourneyDetails,Days,PersonaJourney
 
 admin.site.register(Journey)
 admin.site.register(Journey_icon)
-admin.site.register(JourneyDetails)
+class DeatilsAdmin(admin.ModelAdmin):
+    list_display = ("id","details")
+    ordering = ("id",)
+admin.site.register(JourneyDetails,DeatilsAdmin)
 
 class DaysAdmin(admin.ModelAdmin):
     list_display = ("id","name",)

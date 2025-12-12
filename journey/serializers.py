@@ -52,11 +52,11 @@ class DaysSerializer(serializers.ModelSerializer):
 class JourneySerilzers(serializers.ModelSerializer):
     
     icons = JourneyIconSerializer(many=True, read_only=True)
-    
+    details = JourneyDetailsSerializer(many = True , read_only = True)
 
     class Meta:
         model = Journey
-        fields = ["id", "name","icons",]
+        fields = ["id", "name","icons","details"]
     def validate_name(self, value):
         if Journey.objects.filter(name=value).exists():
             raise serializers.ValidationError("This Jouney  already exists.")

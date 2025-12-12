@@ -8,6 +8,11 @@ class SignupSerializer(serializers.ModelSerializer):
         model = User
         fields = ["full_name", "email", "phone", "password", "confirm_password"]
 
+    def validate_password(self, value):
+        if len(value) < 6:
+            raise serializers.ValidationError("Password must be at least 6 characters long.")
+        return value
+
     def validate_email(self, value):
         if User.objects.filter(email=value).exists():
             raise serializers.ValidationError("Email already exists")
