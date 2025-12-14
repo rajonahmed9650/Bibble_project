@@ -23,7 +23,6 @@ from django.utils.decorators import method_decorator
 import time
 from .models import Sessions
 
-from notifications.notification_sender import send_ws_notification
 
 @method_decorator(csrf_exempt, name="dispatch")
 class SignupView(APIView):
@@ -146,12 +145,6 @@ class OTPVerifiyView(APIView):
             token, expire = create_jwt_token_for_user(user.id)
             save_session(user, token, expire)
 
-            # push_notification(user.id, {
-            #     "title": "Verification",
-            #     "message": SYSTEM_MESSAGES["otp_verified"]
-            # })
-
-
             return Response({
                 "message": "User verified successfully",
                 "verify_status": "verified",
@@ -181,10 +174,7 @@ class OTPVerifiyView(APIView):
             user = User.objects.filter(email=email).first()
             token, expire = create_jwt_token_for_user(user.id)
             save_session(user, token, expire)
-            # push_notification(user.id, {
-            #     "title": "Login",
-            #     "message": SYSTEM_MESSAGES["login_success"]
-            # })
+
             return Response({"status": "login_success", "token": token})
 
         return Response({"error": "Invalid flow"}, status=400)
@@ -224,10 +214,7 @@ class LoginView(APIView):
             token, expire = create_jwt_token_for_user(user.id)
             save_session(user, token, expire)
 
-            # push_notification(user.id, {
-            #     "title": "Login",
-            #     "message": SYSTEM_MESSAGES["login_success"]
-            # })
+   
 
             return Response({
                 "status": "success",
@@ -259,10 +246,6 @@ class LoginView(APIView):
 
             token, expire = create_jwt_token_for_user(user.id)
             save_session(user, token, expire)
-            # push_notification(user.id, {
-            #     "title": "Login",
-            #     "message": SYSTEM_MESSAGES["login_success"]
-            # })
 
             return Response({
                 "status": "success",
@@ -349,8 +332,8 @@ from rest_framework.permissions import AllowAny
 from rest_framework.authentication import BaseAuthentication
 
 class ForgotPasswordView(APIView):
-    authentication_classes = []  # disable JWT + Basic + Session
-    permission_classes = [AllowAny]
+     # disable JWT + Basic + Session
+    
 
     def post(self, request):
         ser = ForgotPasswordSerializer(data=request.data)

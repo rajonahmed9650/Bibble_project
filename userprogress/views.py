@@ -23,11 +23,16 @@ from quiz.serializers import DailyQuizReadSerializer
 from quiz.models import DailyQuiz
 from payments.permissions import HasActiveSubscription
 
+
+
+
+
 class TodayView(APIView):
     permission_classes = [IsAuthenticated, HasActiveSubscription]
 
     def get(self, request):
         user = request.user
+        
 
         # 1) Must have category/persona
         if not user.category:
@@ -40,46 +45,30 @@ class TodayView(APIView):
 
         sequence = persona.sequence
 
-        # 3) Find active journey (not completed)
+        # 3) Find active journey
         progress = UserJourneyProgress.objects.filter(user=user, completed=False).first()
-
-        # If no progress → start with first journey
         if not progress:
-            first_journey_id = sequence[0]
             progress = UserJourneyProgress.objects.create(
                 user=user,
-                journey_id=first_journey_id,
+                journey_id=sequence[0],
                 completed_days=0,
                 completed=False
             )
 
-        # 4) Get current day from utility
+        # 4) Get current day
         journey_id, day_id, global_day = get_current_day(user)
-
         if not day_id:
-            return Response({
-                "journey_id": journey_id,
-                "global_day": global_day,
-                "day": None,
-                "devotion": None,
-                "prayer": None,
-                "action": None,
-                "quiz": None,
-                "message": "No content available for this day"
-            }, status=200)
+            return Response({"message": "No content available"}, status=200)
 
-        # 5) Fetch Current day
+        # 5) Fetch data
         day = Days.objects.filter(id=day_id).first()
         details = JourneyDetails.objects.filter(journey_id=progress.journey.id)
 
-        # 6) Fetch All day-content
         devotion = DailyDevotion.objects.filter(day_id_id=day_id).first()
         prayer = DailyPrayer.objects.filter(day_id_id=day_id).first()
         action = MicroAction.objects.filter(day_id_id=day_id).first()
         quizzes = DailyQuiz.objects.filter(days_id=day_id)
 
-
-        # Return everything in 1 API
         return Response({
             "category": user.category,
             "global_day": global_day,
@@ -94,13 +83,71 @@ class TodayView(APIView):
                 "order": day.order,
                 "image": request.build_absolute_uri(day.image.url) if day.image else None
             },
-            "global_day": global_day,
-            "prayer": DailyPrayerSerializer(prayer,context = {"request":request}).data if prayer else None,
+            "prayer": DailyPrayerSerializer(prayer, context={"request": request}).data if prayer else None,
             "devotion": DailyDevotionSerializer(devotion).data if devotion else None,
             "action": MicroActionSerializer(action).data if action else None,
-            "quiz": DailyQuizReadSerializer(quizzes,many=True).data if quizzes else None,
+            "quiz": DailyQuizReadSerializer(quizzes, many=True).data if quizzes else None,
             "message": "Today's full content loaded successfully"
         }, status=200)
+
+
+class UserProgressDaysView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        user = request.user
+
+        # 1️⃣ User active journey progress
+        journey_progress = UserJourneyProgress.objects.filter(
+            user=user,
+            completed=False
+        ).first()
+
+        if not journey_progress:
+            return Response({
+                "message": "No active journey found"
+            }, status=200)
+
+        journey = journey_progress.journey
+
+        # 2️⃣ All days of this journey (order wise)
+        days = Days.objects.filter(
+            journey_id=journey
+        ).order_by("order")
+
+        # 3️⃣ Completed day ids for this user & journey
+        completed_day_ids = set(
+            UserDayProgress.objects.filter(
+                user=user,
+                completed=True,
+                day_id__journey_id=journey
+            ).values_list("day_id_id", flat=True)
+        )
+
+        result = []
+
+        for day in days:
+            if day.id in completed_day_ids:
+                status = "completed"
+            elif day.order == len(completed_day_ids) + 1:
+                status = "current"
+            else:
+                status = "locked"
+
+            result.append({
+                "day_id": day.id,
+                "day_name": day.name,
+                "day_order": day.order,
+                "status": status
+            })
+
+        return Response({
+            "journey": {
+                "id": journey.id,
+                "name": journey.name
+            },
+            "days": result
+        })
 
 
 

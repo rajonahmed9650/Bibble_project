@@ -48,8 +48,11 @@ INSTALLED_APPS = [
     'daily_devotion',
     'quiz',
     'userprogress',
-    'notifications'
+    'notifications', 
+    'django_apscheduler' 
 ]
+
+
 
 
 ASGI_APPLICATION = "bibble_project.asgi.application"
@@ -207,3 +210,8 @@ CORS_ALLOWED_ORIGINS = [
     "http://127.0.0.1:5173",
     "https://thymiest-layton-doctrinally.ngrok-free.dev",
 ]
+
+
+# settings.py
+
+

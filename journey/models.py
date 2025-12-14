@@ -15,7 +15,7 @@ class Journey(models.Model):
 class JourneyDetails(models.Model):
     journey_id = models.ForeignKey(Journey,on_delete=models.CASCADE , related_name="details")
     image = models.ImageField(upload_to="journey/details")
-    details = models.TextField(max_length=255)
+    details = models.TextField()
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 

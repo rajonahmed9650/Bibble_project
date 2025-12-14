@@ -3,9 +3,11 @@ from .models import Journey,JourneyDetails,Journey_icon,Days
 
 class JourneyDetailsSerializer(serializers.ModelSerializer):
     image = serializers.ImageField(use_url=True)
+
     class Meta:
         model = JourneyDetails
-        fields = ["journey_id","image","details"]
+        fields = ["journey_id", "details", "image"]
+
 
 
 class JourneyIconSerializer(serializers.ModelSerializer):
