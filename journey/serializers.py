@@ -64,3 +64,37 @@ class JourneySerilzers(serializers.ModelSerializer):
             raise serializers.ValidationError("This Jouney  already exists.")
         return value
 
+
+from userprogress.models import UserJourneyProgress
+
+
+
+
+from rest_framework import serializers
+from journey.models import Journey
+from userprogress.models import UserJourneyProgress
+
+
+class JourneyWithStatusSerializer(serializers.ModelSerializer):
+    status = serializers.SerializerMethodField()
+    completed_days = serializers.SerializerMethodField()
+
+    class Meta:
+        model = Journey
+        fields = ["id", "name", "status", "completed_days"]
+
+    def get_status(self, obj):
+        user = self.context["request"].user
+        progress = UserJourneyProgress.objects.filter(
+            user=user,
+            journey=obj
+        ).first()
+        return progress.status if progress else "locked"
+
+    def get_completed_days(self, obj):
+        user = self.context["request"].user
+        progress = UserJourneyProgress.objects.filter(
+            user=user,
+            journey=obj
+        ).first()
+        return progress.completed_days if progress else 0

@@ -1,5 +1,5 @@
 from django.contrib import admin
-from .models import User,Profile,Social_login
+from .models import User,Profile,Social_login,Sessions
 # Register your models here.
 
 class UserAdmin(admin.ModelAdmin):
@@ -7,6 +7,6 @@ class UserAdmin(admin.ModelAdmin):
     ordering = ('id',)
 admin.site.register(User, UserAdmin)
 
-
+admin.site.register(Sessions)
 admin.site.register(Profile)
 admin.site.register(Social_login)

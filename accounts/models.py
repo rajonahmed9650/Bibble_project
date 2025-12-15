@@ -31,6 +31,7 @@ class User(AbstractUser):
     phone = models.CharField(max_length=20, unique=True)
     full_name = models.CharField(max_length=255, blank=True, null=True)
     category = models.CharField(max_length=255,blank=True,null=True)
+    last_category = models.CharField(max_length=50, null=True, blank=True)
 
     journey_start_date = models.DateField(blank=True, null=True)
 

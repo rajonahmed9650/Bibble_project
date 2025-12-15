@@ -1,30 +1,41 @@
-
-
-# =======================
-#   TODAY VIEW
-# =======================
+# progress/views.py
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
 
-from .utils import get_current_day
-from .models import UserDayProgress,UserJourneyProgress
-from journey.models import PersonaJourney, Journey, Days,JourneyDetails
-from journey.serializers import JourneyDetailsSerializer
+from payments.permissions import HasActiveSubscription
+from journey.models import PersonaJourney, Days
+from userprogress.models import UserJourneyProgress, UserDayProgress
+from userprogress.utils import get_current_day
 
+from daily_devotion.models import DailyDevotion, DailyPrayer, MicroAction
 from daily_devotion.serializers import (
     DailyDevotionSerializer,
     DailyPrayerSerializer,
     MicroActionSerializer
 )
-from daily_devotion.models import DailyDevotion, DailyPrayer, MicroAction
-
-from quiz.serializers import DailyQuizReadSerializer
 from quiz.models import DailyQuiz
+from quiz.serializers import DailyQuizReadSerializer
+
+
+# progress/views.py
+from rest_framework.views import APIView
+from rest_framework.response import Response
+from rest_framework.permissions import IsAuthenticated
+
 from payments.permissions import HasActiveSubscription
+from journey.models import PersonaJourney, Days
+from userprogress.models import UserJourneyProgress, UserDayProgress
+from userprogress.utils import get_current_day
 
-
-
+from daily_devotion.models import DailyDevotion, DailyPrayer, MicroAction
+from daily_devotion.serializers import (
+    DailyDevotionSerializer,
+    DailyPrayerSerializer,
+    MicroActionSerializer
+)
+from quiz.models import DailyQuiz
+from quiz.serializers import DailyQuizReadSerializer
 
 
 class TodayView(APIView):
@@ -32,113 +43,326 @@ class TodayView(APIView):
 
     def get(self, request):
         user = request.user
-        
 
-        # 1) Must have category/persona
         if not user.category:
-            return Response({"message": "No category found. Please finish assessment first."}, status=200)
+            return Response({"message": "No category found"}, status=200)
 
-        # 2) Get persona journey sequence
         persona = PersonaJourney.objects.filter(persona=user.category).first()
         if not persona:
-            return Response({"message": "No persona configuration found."}, status=200)
+            return Response({"message": "No persona configuration"}, status=200)
 
         sequence = persona.sequence
 
-        # 3) Find active journey
-        progress = UserJourneyProgress.objects.filter(user=user, completed=False).first()
+        # ✅ ensure only one CURRENT journey from sequence
+        progress = UserJourneyProgress.objects.filter(
+            user=user,
+            status="current",
+            journey_id__in=sequence
+        ).first()
+
         if not progress:
-            progress = UserJourneyProgress.objects.create(
+            progress, _ = UserJourneyProgress.objects.get_or_create(
                 user=user,
                 journey_id=sequence[0],
-                completed_days=0,
-                completed=False
+                defaults={"status": "current"}
             )
 
-        # 4) Get current day
-        journey_id, day_id, global_day = get_current_day(user)
-        if not day_id:
-            return Response({"message": "No content available"}, status=200)
+        # ✅ get current day
+        current_day = get_current_day(user, progress.journey)
 
-        # 5) Fetch data
-        day = Days.objects.filter(id=day_id).first()
-        details = JourneyDetails.objects.filter(journey_id=progress.journey.id)
+        if not current_day:
+            first_day = Days.objects.filter(
+                journey_id=progress.journey,
+                order=1
+            ).first()
 
-        devotion = DailyDevotion.objects.filter(day_id_id=day_id).first()
-        prayer = DailyPrayer.objects.filter(day_id_id=day_id).first()
-        action = MicroAction.objects.filter(day_id_id=day_id).first()
-        quizzes = DailyQuiz.objects.filter(days_id=day_id)
+            UserDayProgress.objects.get_or_create(
+                user=user,
+                day_id=first_day,
+                defaults={"status": "current"}
+            )
+            current_day = first_day
 
         return Response({
-            "category": user.category,
-            "global_day": global_day,
             "journey": {
                 "id": progress.journey.id,
                 "name": progress.journey.name,
-                "details": JourneyDetailsSerializer(details, many=True, context={"request": request}).data
+                "status": progress.status
             },
             "day": {
-                "id": day.id,
-                "title": day.name,
-                "order": day.order,
-                "image": request.build_absolute_uri(day.image.url) if day.image else None
+                "id": current_day.id,
+                "order": current_day.order,
+                "title": current_day.name
             },
-            "prayer": DailyPrayerSerializer(prayer, context={"request": request}).data if prayer else None,
-            "devotion": DailyDevotionSerializer(devotion).data if devotion else None,
-            "action": MicroActionSerializer(action).data if action else None,
-            "quiz": DailyQuizReadSerializer(quizzes, many=True).data if quizzes else None,
-            "message": "Today's full content loaded successfully"
+            "prayer": DailyPrayerSerializer(
+                DailyPrayer.objects.filter(day_id=current_day).first()
+            ).data if DailyPrayer.objects.filter(day_id=current_day).exists() else None,
+            "devotion": DailyDevotionSerializer(
+                DailyDevotion.objects.filter(day_id=current_day).first()
+            ).data if DailyDevotion.objects.filter(day_id=current_day).exists() else None,
+            "action": MicroActionSerializer(
+                MicroAction.objects.filter(day_id=current_day).first()
+            ).data if MicroAction.objects.filter(day_id=current_day).exists() else None,
+            "quiz": DailyQuizReadSerializer(
+                DailyQuiz.objects.filter(days_id=current_day),
+                many=True
+            ).data
         }, status=200)
+
+
+
+# progress/views.py
+from rest_framework.views import APIView
+from rest_framework.response import Response
+from rest_framework.permissions import IsAuthenticated
+from django.db import transaction
+
+from payments.permissions import HasActiveSubscription
+from journey.models import Journey, Days, PersonaJourney
+from userprogress.models import UserJourneyProgress, UserDayProgress
+
+
+from rest_framework.views import APIView
+from rest_framework.response import Response
+from rest_framework.permissions import IsAuthenticated
+from django.db import transaction
+
+from payments.permissions import HasActiveSubscription
+from journey.models import Journey, Days, PersonaJourney
+from userprogress.models import UserJourneyProgress, UserDayProgress
+
+
+
+from rest_framework.views import APIView
+from rest_framework.response import Response
+from rest_framework.permissions import IsAuthenticated
+from django.db import transaction
+
+from payments.permissions import HasActiveSubscription
+from journey.models import Journey, Days, PersonaJourney
+from userprogress.models import UserJourneyProgress, UserDayProgress
+
+
+class CompleteDayView(APIView):
+    permission_classes = [IsAuthenticated, HasActiveSubscription]
+
+    @transaction.atomic
+    def post(self, request):
+        user = request.user
+
+        journey_id = request.data.get("journey_id")
+        day_id = request.data.get("day_id")          # ✅ mandatory
+        action = request.data.get("action")
+
+        # 1️⃣ validation
+        if not journey_id or not day_id or action != "complete":
+            return Response(
+                {
+                    "error": "journey_id, day_id and action='complete' are required"
+                },
+                status=400
+            )
+
+        journey = Journey.objects.filter(id=journey_id).first()
+        if not journey:
+            return Response({"error": "Invalid journey"}, status=404)
+
+        day = Days.objects.filter(id=day_id, journey_id=journey).first()
+        if not day:
+            return Response({"error": "Invalid day for this journey"}, status=404)
+
+        # 2️⃣ get CURRENT day from DB (source of truth)
+        current_dp = UserDayProgress.objects.filter(
+            user=user,
+            status="current",
+            day_id__journey_id=journey
+        ).select_related("day_id").first()
+
+        if not current_dp:
+            return Response(
+                {"error": "No current day found"},
+                status=400
+            )
+
+        # 3️⃣ day_id MUST match current day
+        if current_dp.day_id.id != day.id:
+            return Response(
+                {
+                    "error": "You can only complete the current day",
+                    "current_day_id": current_dp.day_id.id,
+                    "received_day_id": day.id
+                },
+                status=400
+            )
+
+        # 4️⃣ complete current day
+        current_dp.status = "completed"
+        current_dp.save()
+
+        progress, _ = UserJourneyProgress.objects.get_or_create(
+            user=user,
+            journey=journey,
+            defaults={"status": "current"}
+        )
+
+        progress.completed_days += 1
+        progress.save()
+
+        # ------------------------------------------------
+        # 🔁 NEXT DAY (same journey)
+        # ------------------------------------------------
+        next_day = Days.objects.filter(
+            journey_id=journey,
+            order=day.order + 1
+        ).first()
+
+        if next_day:
+            ndp, _ = UserDayProgress.objects.get_or_create(
+                user=user,
+                day_id=next_day
+            )
+            ndp.status = "current"
+            ndp.save()
+
+            return Response({
+                "message": "Day completed",
+                "next": {
+                    "type": "day",
+                    "day_id": next_day.id,
+                    "order": next_day.order
+                }
+            }, status=200)
+
+        # ------------------------------------------------
+        # 🏁 JOURNEY COMPLETED
+        # ------------------------------------------------
+        progress.status = "completed"
+        progress.completed = True
+        progress.save()
+
+        persona = PersonaJourney.objects.filter(
+            persona=user.category
+        ).first()
+
+        if not persona:
+            return Response({"message": "Journey completed"}, status=200)
+
+        sequence = persona.sequence
+        index = sequence.index(journey.id)
+
+        # ------------------------------------------------
+        # 🚀 NEXT JOURNEY
+        # ------------------------------------------------
+        if index + 1 < len(sequence):
+            next_journey = Journey.objects.get(id=sequence[index + 1])
+
+            next_progress, _ = UserJourneyProgress.objects.get_or_create(
+                user=user,
+                journey=next_journey,
+                defaults={
+                    "status": "current",
+                    "completed_days": 0,
+                    "completed": False
+                }
+            )
+            next_progress.status = "current"
+            next_progress.save()
+
+            first_day = Days.objects.filter(
+                journey_id=next_journey,
+                order=1
+            ).first()
+
+            if first_day:
+                fdp, _ = UserDayProgress.objects.get_or_create(
+                    user=user,
+                    day_id=first_day
+                )
+                fdp.status = "current"
+                fdp.save()
+
+            return Response({
+                "message": "Journey completed → Next journey started",
+                "next": {
+                    "type": "journey",
+                    "journey_id": next_journey.id,
+                    "first_day_id": first_day.id if first_day else None
+                }
+            }, status=200)
+
+        # ------------------------------------------------
+        # 🔄 RESET (ALL JOURNEYS DONE)
+        # ------------------------------------------------
+        UserDayProgress.objects.filter(user=user).delete()
+        UserJourneyProgress.objects.filter(user=user).update(
+            status="completed",
+            completed=True,
+            completed_days=0
+        )
+
+        first_journey = Journey.objects.get(id=sequence[0])
+        restart_progress, _ = UserJourneyProgress.objects.get_or_create(
+            user=user,
+            journey=first_journey
+        )
+        restart_progress.status = "current"
+        restart_progress.completed = False
+        restart_progress.completed_days = 0
+        restart_progress.save()
+
+        first_day = Days.objects.filter(
+            journey_id=first_journey,
+            order=1
+        ).first()
+
+        if first_day:
+            UserDayProgress.objects.create(
+                user=user,
+                day_id=first_day,
+                status="current"
+            )
+
+        return Response({
+            "message": "All journeys completed. Restarted from first journey."
+        }, status=200)
+
+
+
+from rest_framework.views import APIView
+from rest_framework.response import Response
+from rest_framework.permissions import IsAuthenticated
+
+from journey.models import Journey, Days
+from userprogress.models import UserDayProgress
 
 
 class UserProgressDaysView(APIView):
     permission_classes = [IsAuthenticated]
 
-    def get(self, request):
+    def get(self, request, journey_id):
         user = request.user
 
-        # 1️⃣ User active journey progress
-        journey_progress = UserJourneyProgress.objects.filter(
-            user=user,
-            completed=False
-        ).first()
+        journey = Journey.objects.filter(id=journey_id).first()
+        if not journey:
+            return Response({"message": "Journey not found"}, status=404)
 
-        if not journey_progress:
-            return Response({
-                "message": "No active journey found"
-            }, status=200)
-
-        journey = journey_progress.journey
-
-        # 2️⃣ All days of this journey (order wise)
         days = Days.objects.filter(
             journey_id=journey
         ).order_by("order")
 
-        # 3️⃣ Completed day ids for this user & journey
-        completed_day_ids = set(
-            UserDayProgress.objects.filter(
-                user=user,
-                completed=True,
-                day_id__journey_id=journey
-            ).values_list("day_id_id", flat=True)
-        )
-
         result = []
 
         for day in days:
-            if day.id in completed_day_ids:
-                status = "completed"
-            elif day.order == len(completed_day_ids) + 1:
-                status = "current"
-            else:
-                status = "locked"
+            dp = UserDayProgress.objects.filter(
+                user=user,
+                day_id=day
+            ).first()
 
             result.append({
                 "day_id": day.id,
                 "day_name": day.name,
                 "day_order": day.order,
-                "status": status
+                "status": dp.status if dp else "locked"
             })
 
         return Response({
@@ -147,127 +371,4 @@ class UserProgressDaysView(APIView):
                 "name": journey.name
             },
             "days": result
-        })
-
-
-
-# ===========================================
-#           COMPLETE DAY VIEW
-# ===========================================
-
-class CompleteDayView(APIView):
-    permission_classes = [IsAuthenticated, HasActiveSubscription]
-
-    def post(self, request):
-        user = request.user
-
-        # 0️⃣ Validate POST body
-        if request.data.get("day_completed") != True:
-            return Response({"error": "day_completed=true is required"}, status=400)
-
-        # 1️⃣ Get current journey + day
-        journey_id, day_id, global_day = get_current_day(user)
-
-        if not day_id:
-            return Response({"error": "No active day"}, status=400)
-
-        current_day = Days.objects.get(id=day_id)
-        current_order = current_day.order
-
-        # 2️⃣ Mark day completed (user wise)
-        UserDayProgress.objects.update_or_create(
-            user=user,
-            day_id_id=day_id,
-            defaults={"completed": True}
-        )
-
-        # 3️⃣ Update journey progress
-        progress, _ = UserJourneyProgress.objects.get_or_create(
-            user=user,
-            journey_id=journey_id,
-            defaults={"completed_days": 0, "completed": False}
-        )
-
-        progress.completed_days += 1
-        progress.save()
-
-        # 4️⃣ Check if next day exists in same journey
-        next_day = Days.objects.filter(
-            journey_id=journey_id,
-            order=current_order + 1
-        ).first()
-
-        if next_day:
-            return Response({
-                "message": "Day completed → next day unlocked!",
-                "day_title": current_day.name,
-                "next_day": {
-                    "id": next_day.id,
-                    "title": next_day.name,
-                    "order": next_day.order,
-                    "journey_id": journey_id
-                }
-            }, status=200)
-
-        # --------------------------
-        # 5️⃣ No more days → JOURNEY COMPLETED
-        # --------------------------
-
-        progress.completed = True
-        progress.save()
-
-        persona = PersonaJourney.objects.get(persona=user.category)
-        sequence = persona.sequence              # e.g. [1,6,5,8,4,2,7,3]
-
-        current_index = sequence.index(journey_id)
-        last_index = len(sequence) - 1
-
-        # --------------------------
-        # 6️⃣ CASE A — More journeys remaining
-        # --------------------------
-        if current_index < last_index:
-            next_journey_id = sequence[current_index + 1]
-
-        else:
-            # --------------------------
-            # 7️⃣ CASE B — All journeys done → FULL RESET
-            # --------------------------
-            UserJourneyProgress.objects.filter(user=user).delete()
-            UserDayProgress.objects.filter(user=user).delete()
-
-            next_journey_id = sequence[0]   # restart from first journey
-
-        # --------------------------
-        # 8️⃣ Create progress for next journey (NO DUPLICATE ERROR)
-        # --------------------------
-        next_progress = UserJourneyProgress.objects.filter(
-            user=user,
-            journey_id=next_journey_id
-        ).first()
-
-        if not next_progress:
-            next_progress = UserJourneyProgress.objects.create(
-                user=user,
-                journey_id=next_journey_id,
-                completed_days=0,
-                completed=False
-            )
-        else:
-            # Reset if exists
-            next_progress.completed_days = 0
-            next_progress.completed = False
-            next_progress.save()
-
-        # --------------------------
-        # 9️⃣ Return final response
-        # --------------------------
-        next_journey = Journey.objects.get(id=next_journey_id)
-
-        return Response({
-            "message": "🎉 Journey completed! Next journey unlocked.",
-            "completed_journey": current_day.journey_id.name,
-            "next_journey": {
-                "id": next_journey.id,
-                "name": next_journey.name
-            }
         }, status=200)

@@ -333,7 +333,8 @@ from rest_framework.authentication import BaseAuthentication
 
 class ForgotPasswordView(APIView):
      # disable JWT + Basic + Session
-    
+    permission_classes = [AllowAny]
+    authentication_classes = []
 
     def post(self, request):
         ser = ForgotPasswordSerializer(data=request.data)
@@ -460,26 +461,24 @@ class DisableAccountView(APIView):
 
     def post(self, request):
         user = request.user
-        password = request.data.get("password")
+        active = request.data.get("active")
 
-        if not password:
-            return Response({"error": "Password is required"}, status=400)
+        # Accept both true and "true"
+        if str(active).lower() != "true":
+            return Response(
+                {"error": "active=true is required to disable account"},
+                status=status.HTTP_400_BAD_REQUEST
+            )
 
-        # verify password
-        user_check = authenticate(username=user.email, password=password)
-
-        if user_check is None:
-            return Response({"error": "Invalid password"}, status=400)
-
-        # disable account
+        # Disable account
         user.is_active = False
         user.save()
 
- 
+        # Remove all active sessions (important)
+        Sessions.objects.filter(user=user).delete()
 
-
-        # JWT or token remove (frontend must delete token)
         return Response(
             {"message": "Account disabled successfully"},
-            status=200
+            status=status.HTTP_200_OK
         )
+
