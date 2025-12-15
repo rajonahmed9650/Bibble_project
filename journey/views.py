@@ -242,83 +242,39 @@ from .serializers import JourneySerilzers,JourneyWithStatusSerializer
 from payments.permissions import HasActiveSubscription
 from .serializers import UserJourneyProgress
 
+
 class UserJourneySequenceView(APIView):
     permission_classes = [IsAuthenticated, HasActiveSubscription]
 
     def get(self, request):
         user = request.user
 
-        # 1️⃣ User category check
         if not user.category:
             return Response(
-                {"error": "User category not assigned yet!"},
+                {"error": "User category not assigned"},
                 status=400
             )
 
-        # 2️⃣ Get persona sequence
-        try:
-            persona = PersonaJourney.objects.get(persona=user.category)
-        except PersonaJourney.DoesNotExist:
-            return Response(
-                {"error": "No matching PersonaJourney found!"},
-                status=404
-            )
+        persona = PersonaJourney.objects.get(persona=user.category)
+        sequence = persona.sequence
 
-        sequence_list = persona.sequence  # e.g. [5, 6, 7]
+        journeys = Journey.objects.filter(id__in=sequence)
+        ordered = sorted(journeys, key=lambda j: sequence.index(j.id))
 
-        if not sequence_list:
-            return Response(
-                {"error": "Persona journey sequence is empty"},
-                status=400
-            )
-
-        # -------------------------------------------------
-        # 🔥 STEP 1: FORCE RESET ALL CURRENT JOURNEYS
-        # -------------------------------------------------
-        UserJourneyProgress.objects.filter(
-            user=user,
-            status="current"
-        ).update(status="completed")
-
-        # -------------------------------------------------
-        # 🔥 STEP 2: FORCE FIRST JOURNEY OF SEQUENCE = CURRENT
-        # -------------------------------------------------
-        first_journey_id = sequence_list[0]
-
-        progress, _ = UserJourneyProgress.objects.get_or_create(
-            user=user,
-            journey_id=first_journey_id,
-            defaults={
-                "completed_days": 0,
-                "completed": False,
-                "status": "current"
-            }
-        )
-
-        if progress.status != "current":
-            progress.status = "current"
-            progress.completed = False
-            progress.save()
-
-        # -------------------------------------------------
-        # 3️⃣ Fetch journeys in persona order
-        # -------------------------------------------------
-        journeys = Journey.objects.filter(id__in=sequence_list)
-        ordered_journeys = sorted(
-            journeys,
-            key=lambda j: sequence_list.index(j.id)
-        )
-
-        # 4️⃣ Serialize with status
         serializer = JourneyWithStatusSerializer(
-            ordered_journeys,
+            ordered,
             many=True,
             context={"request": request}
         )
 
-        return Response({
-            "user": user.username,
-            "category": user.category,
-            "journeys": serializer.data
-        }, status=200)
+        # 🔑 find current journey (optional but useful)
+        current = next(
+            (j for j in serializer.data if j["status"] == "current"),
+            None
+        )
 
+        return Response({
+            "category": user.category,
+            "current_journey": current,   # 👈 current journey clearly
+            "journeys": serializer.data   # 👈 all journeys with status
+        }, status=200)
