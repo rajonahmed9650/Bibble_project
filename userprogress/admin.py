@@ -1,5 +1,5 @@
 from django.contrib import admin
-from .models import UserJourneyProgress,UserDayProgress
+from .models import UserJourneyProgress,UserDayProgress,UserDayItemProgress
 # Register your models here.
 
 
@@ -10,3 +10,5 @@ class UserDayProgressAdmin(admin.ModelAdmin):
     ordering = ("id",)
 
 admin.site.register(UserDayProgress,UserDayProgressAdmin)
+
+admin.site.register(UserDayItemProgress)

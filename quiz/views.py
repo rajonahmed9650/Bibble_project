@@ -100,6 +100,10 @@ class QuizOptionDetail(APIView):
 # -------------------------------
 # SUBMIT ANSWER
 # -------------------------------
+from django.utils import timezone
+from userprogress.models import UserDayItemProgress, UserDayProgress
+
+
 class MultipleSubmitQuizAnswer(APIView):
     permission_classes = [IsAuthenticated]
 
@@ -110,6 +114,28 @@ class MultipleSubmitQuizAnswer(APIView):
         )
         serializer.is_valid(raise_exception=True)
         data = serializer.save()
+
+        # ✅ ADD START — quiz completion tracking
+        user = request.user
+
+        current_dp = UserDayProgress.objects.filter(
+            user=user,
+            status="current"
+        ).select_related("day_id").first()
+
+        if current_dp:
+            UserDayItemProgress.objects.update_or_create(
+                user=user,
+                day=current_dp.day_id,
+                item_type="quiz",
+                defaults={
+                    "completed": True,
+                    "completed_at": timezone.now()
+                }
+            )
+        # ✅ ADD END
+
         return Response(data, status=200)
+
 
 

@@ -275,6 +275,6 @@ class UserJourneySequenceView(APIView):
 
         return Response({
             "category": user.category,
-            "current_journey": current,   # 👈 current journey clearly
+           # 👈 current journey clearly
             "journeys": serializer.data   # 👈 all journeys with status
         }, status=200)
