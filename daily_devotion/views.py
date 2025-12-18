@@ -114,7 +114,7 @@ class DailyPrayerListCreate(APIView):
         # 4 hit external audio stream API
         try:
             res = requests.post(
-                "http://206.162.244.135:8001/api/stream",
+                "http://206.162.244.131:8001/api/stream",
                 json=payload
             )
         except Exception as e:

@@ -21,7 +21,7 @@ from django.views.decorators.csrf import csrf_exempt
 from django.utils.decorators import method_decorator
 
 import time
-from .models import Sessions
+from .models import Sessions,User
 
 
 @method_decorator(csrf_exempt, name="dispatch")
@@ -220,7 +220,8 @@ class LoginView(APIView):
                 "status": "success",
                 "login_by": "google",
                 "token": token,
-                "plan_selection_needed": True
+                "plan_selection_needed": True,
+                "category": user.category
             })
 
       
@@ -251,7 +252,8 @@ class LoginView(APIView):
                 "status": "success",
                 "login_by": "apple",
                 "token": token,
-                "plan_selection_needed": True
+                "plan_selection_needed": True,
+                "category": user.category
             })
 
 
@@ -281,15 +283,13 @@ class LoginView(APIView):
             token, expire = create_jwt_token_for_user(user.id)
             save_session(user, token, expire)
 
-            # push_notification(user.id, {
-            #     "title": "Login",
-            #     "message": SYSTEM_MESSAGES["login_success"]
-            # })
+
             return Response({
                 "status": "success",
                 "login_by": "email",
                 "token": token,
-                "plan_selection_needed": True
+                "plan_selection_needed": True,
+                "category": user.category
             })
 
         return Response({"error": "Invalid request"}, status=400)
@@ -433,7 +433,7 @@ class CategorizeView(APIView):
         if user.category:
             return Response({"message":"You already have a category assigned"})
         
-        external_url = "http://206.162.244.135:8001/api/categorize/"
+        external_url = "http://206.162.244.131:8001/api/categorize/"
 
         response = requests.post(external_url,json={"qa_pairs":qa_pairs})
 

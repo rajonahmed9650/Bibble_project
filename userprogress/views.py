@@ -5,7 +5,7 @@ from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
 
 from payments.permissions import HasActiveSubscription
-from journey.models import PersonaJourney, Days
+from journey.models import PersonaJourney, Days,JourneyDetails
 from userprogress.models import UserJourneyProgress, UserDayProgress
 
 from daily_devotion.models import DailyDevotion, DailyPrayer, MicroAction
@@ -118,6 +118,18 @@ class UserProgressDaysView(APIView):
                 {"error": "Journey not found or has no days"},
                 status=404
             )
+        journey = Journey.objects.get(id=journey_id)
+        journey_details = JourneyDetails.objects.filter(
+            journey_id=journey_id
+        ).first()
+
+
+        image_url = (
+            request.build_absolute_uri(journey_details.image.url)
+            if journey_details and journey_details.image
+            else None
+        )
+
 
         days = Days.objects.filter(
             journey_id=journey_id
@@ -141,7 +153,17 @@ class UserProgressDaysView(APIView):
                 "status": dp_map.get(day.id, "locked")
             })
 
-        return Response({"days": result})
+        return Response({
+            "journey": {
+                "id": journey.id,
+                "name": journey.name,
+            },
+            "journey_details": {
+                "image": image_url,
+                "details": journey_details.details if journey_details else None,
+            },
+            "days": result
+        })
 
 
 
@@ -319,70 +341,106 @@ class CompleteDayItemView(APIView):
 
     def post(self, request):
         user = request.user
-        item_type = request.data.get("item_type")   # prayer / devotion / action
+        item_type = request.data.get("item_type")
         day_id = request.data.get("day_id")
 
-        # 🔹 validate item_type using if / elif
-        if item_type == "prayer":
-            pass
-        elif item_type == "devotion":
-            pass
-        elif item_type == "action":
-            pass
-        else:
+
+
+        # -------------------------
+        # 1️⃣ Validate item_type
+        # -------------------------
+        ALLOWED_ITEMS = ["prayer", "devotion", "action"]
+
+        if item_type not in ALLOWED_ITEMS:
+           
             return Response(
                 {"error": "Invalid item_type. Use prayer / devotion / action"},
                 status=400
             )
 
-        # 🔹 validate day_id
+        # -------------------------
+        # 2️⃣ Validate day_id
+        # -------------------------
         if not day_id:
+            
             return Response(
                 {"error": "day_id is required"},
                 status=400
             )
 
         day = Days.objects.filter(id=day_id).first()
+        print("DAY OBJECT:", day)
+
         if not day:
+            
             return Response(
                 {"error": "Invalid day_id"},
                 status=404
             )
 
-        # 🔹 ensure this is CURRENT day for user
+        # -------------------------
+        # 3️⃣ DEBUG UserDayProgress
+        # -------------------------
+        all_dp = list(
+            UserDayProgress.objects.filter(user=user)
+            .values("id", "day_id_id", "status")
+        )
+
+       
+
         current_dp = UserDayProgress.objects.filter(
             user=user,
-            day_id=day,
+            day_id_id=day.id,
             status="current"
         ).first()
 
+       
+
         if not current_dp:
+            
             return Response(
                 {"error": "You can only complete items for the current day"},
                 status=400
             )
 
-        # 🔹 create/update item progress
+        # -------------------------
+        # 4️⃣ Create / Get item progress
+        # -------------------------
         obj, created = UserDayItemProgress.objects.get_or_create(
             user=user,
             day=day,
             item_type=item_type
         )
 
-        if obj.completed:
-            return Response({
-                "message": f"{item_type} already completed",
-                "day_id": day.id,
-                "completed": True
-            }, status=200)
+        print("ITEM PROGRESS:", obj, "CREATED:", created)
 
+        if obj.completed:
+           
+            return Response(
+                {
+                    "message": f"{item_type} already completed",
+                    "day_id": day.id,
+                    "item_type": item_type,
+                    "completed": True
+                },
+                status=200
+            )
+
+        # -------------------------
+        # 5️⃣ Mark item completed
+        # -------------------------
         obj.completed = True
         obj.completed_at = timezone.now()
         obj.save()
 
-        return Response({
-            "message": f"{item_type} completed successfully",
-            "day_id": day.id,
-            "item_type": item_type,
-            "completed": True
-        }, status=200)
+        print("✅ ITEM MARKED COMPLETED")
+
+        return Response(
+            {
+                "message": f"{item_type} completed successfully",
+                "day_id": day.id,
+                "item_type": item_type,
+                "completed": True
+            },
+            status=200
+        )

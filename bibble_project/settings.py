@@ -215,3 +215,5 @@ CORS_ALLOWED_ORIGINS = [
 # settings.py
 
 
+TIME_ZONE = "Asia/Dhaka"
+USE_TZ = True

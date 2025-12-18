@@ -7,26 +7,6 @@ from .models import Notification
 from .serializers import NotificationSerializer
 
 
-class NotificationListView(APIView):
-    permission_classes = [IsAuthenticated]
-
-    def get(self, request):
-        qs = Notification.objects.filter(
-            user=request.user
-        ).order_by("-created_at")
-
-        serializer = NotificationSerializer(
-            qs,
-            many=True,
-            context={"request": request}
-        )
-
-        return Response({
-            "count": qs.count(),
-            "notifications": serializer.data
-        })
-
-
 
 class MarkNotificationReadView(APIView):
     permission_classes = [IsAuthenticated]
@@ -62,4 +42,36 @@ class ClearAllNotificationsView(APIView):
         return Response({
             "message": "All notifications marked as read",
             "updated": count
+        })
+
+
+
+
+
+
+# notifications/views.py
+
+from django.utils import timezone
+from datetime import timedelta
+
+
+class NotificationListView(APIView):
+    def get(self, request):
+        user = request.user
+        today = timezone.localdate()
+        yesterday = today - timedelta(days=1)
+
+        qs = Notification.objects.filter(user=user)
+
+        def serialize(qs):
+            return [{
+                "title": n.title,
+                "message": n.message,
+                "type": n.notification_type,
+                "time": n.created_at.strftime("%I:%M %p")
+            } for n in qs]
+
+        return Response({
+            "today": serialize(qs.filter(created_at__date=today)),
+            "yesterday": serialize(qs.filter(created_at__date=yesterday)),
         })
