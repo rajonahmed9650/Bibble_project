@@ -9,6 +9,8 @@ from rest_framework.parsers import MultiPartParser, FormParser
 from .models import Journey,JourneyDetails,Journey_icon,Days
 from .serializers import JourneySerilzers,JourneyDetailsSerializer,Journey_icon,DaysSerializer,JourneyIconSerializer
 from payments.permissions import HasActiveSubscription
+from .serializers import JourneyWithStatusSerializer
+from .models import PersonaJourney
 
 
 # JOURNEY VIEW
@@ -236,13 +238,6 @@ class JourneyIconAPiView(APIView):
         return Response(status=status.HTTP_204_NO_CONTENT)    
 
 
-    
-from .models import PersonaJourney
-from .serializers import JourneySerilzers,JourneyWithStatusSerializer
-from payments.permissions import HasActiveSubscription
-from .serializers import UserJourneyProgress
-
-
 class UserJourneySequenceView(APIView):
     permission_classes = [IsAuthenticated, HasActiveSubscription]
 
@@ -260,21 +255,48 @@ class UserJourneySequenceView(APIView):
 
         journeys = Journey.objects.filter(id__in=sequence)
         ordered = sorted(journeys, key=lambda j: sequence.index(j.id))
-
+       
         serializer = JourneyWithStatusSerializer(
             ordered,
             many=True,
             context={"request": request}
         )
 
-        # 🔑 find current journey (optional but useful)
+        data = serializer.data
+
+        for j in data:
+            #  JOURNEY ICON (already working)
+            icon = Journey_icon.objects.filter(
+                journey_id=j["id"]
+            ).first()
+
+            if icon and icon.icon:
+                j["journey_icon"] = request.build_absolute_uri(icon.icon.url)
+            else:
+                j["journey_icon"] = None
+
+            #  JOURNEY DETAILS (same logic as icon)
+            detail = JourneyDetails.objects.filter(
+                journey_id=j["id"]
+            ).first()
+
+            if detail:
+                j["details"] = {
+                    "image": request.build_absolute_uri(detail.image.url)
+                    if detail.image else None,
+                    "details": detail.details
+                }
+            else:
+                j["details"] = {}   # no details
+
         current = next(
-            (j for j in serializer.data if j["status"] == "current"),
+            (j for j in data if j["status"] == "current"),
             None
         )
 
         return Response({
             "category": user.category,
-           # 👈 current journey clearly
-            "journeys": serializer.data   # 👈 all journeys with status
+            "journeys": data
         }, status=200)
+
+

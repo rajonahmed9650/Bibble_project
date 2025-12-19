@@ -175,7 +175,14 @@ from django.utils import timezone
 
 
 from journey.models import Days, Journey, PersonaJourney
+from daily_devotion.models import DailyReflectionSpace
 
+
+from django.utils import timezone
+from django.db import transaction
+from rest_framework.views import APIView
+from rest_framework.response import Response
+from rest_framework.permissions import IsAuthenticated
 
 class CompleteDayView(APIView):
     permission_classes = [IsAuthenticated, HasActiveSubscription]
@@ -183,40 +190,56 @@ class CompleteDayView(APIView):
     @transaction.atomic
     def post(self, request):
         user = request.user
-        today = timezone.now().date()
+        now = timezone.now()
+        today = now.date()
 
-        # =====================================================
-        # ❌ Rule: One calendar day → one day completion
-        # =====================================================
-        if UserDayProgress.objects.filter(
+        reflection_note = request.data.get("reflection_note", "").strip()
+
+        # -------------------------------------------------
+        # Rule: max 1 day per calendar day  ✅ FIX
+        # -------------------------------------------------
+        completed_today_count = UserDayProgress.objects.filter(
             user=user,
-            completed_at=today
-        ).exists():
+            completed_at=today   # ✅ FIX (was completed_at=today)
+        ).count()
+
+        if completed_today_count >= 1:   # ✅ FIX (was >= 2)
             return Response(
-                {"error": "Only one day can be completed per day"},
+                {"error": "You can complete only one day per calendar day"},
                 status=400
             )
 
-        # =====================================================
-        # ✅ SERVER decides CURRENT DAY
-        # =====================================================
+        # -------------------------------------------------
+        # Get current day
+        # -------------------------------------------------
         current_dp = UserDayProgress.objects.filter(
             user=user,
             status="current"
-        ).select_related("day_id", "day_id__journey_id").first()
+        ).select_related("day_id", "day_id__journey_id") \
+         .order_by("day_id__order") \
+         .first()
 
         if not current_dp:
-            return Response(
-                {"error": "No active day found"},
-                status=400
-            )
+            return Response({"error": "No active day found"}, status=400)
 
         day = current_dp.day_id
         journey = day.journey_id
 
-        # =====================================================
-        # 🔐 REQUIRED ITEMS CHECK (Prayer, Devotion, Action, Quiz)
-        # =====================================================
+        # -------------------------------------------------
+        # Optional reflection
+        # -------------------------------------------------
+        if reflection_note:
+            daily_devotion = DailyDevotion.objects.filter(day_id=day).first()
+            if daily_devotion:
+                DailyReflectionSpace.objects.create(
+                    user=user,
+                    dailydevotion_id=daily_devotion,
+                    reflection_note=reflection_note
+                )
+
+        # -------------------------------------------------
+        # Required items check
+        # -------------------------------------------------
         REQUIRED_ITEMS = ["prayer", "devotion", "action", "quiz"]
 
         completed_items = UserDayItemProgress.objects.filter(
@@ -236,51 +259,42 @@ class CompleteDayView(APIView):
                 status=400
             )
 
-        # =====================================================
-        # ✅ COMPLETE DAY
-        # =====================================================
+        # -------------------------------------------------
+        # Complete current day
+        # -------------------------------------------------
         current_dp.status = "completed"
-        current_dp.completed_at = today
+        current_dp.completed_at = now   # ✅ FIX (was today)
         current_dp.save()
 
-        # =====================================================
-        # 📈 UPDATE JOURNEY PROGRESS
-        # =====================================================
         journey_progress = UserJourneyProgress.objects.get(
             user=user,
             journey=journey
         )
-
         journey_progress.completed_days += 1
         journey_progress.save()
 
-        # =====================================================
-        # ➡️ NEXT DAY (same journey)
-        # =====================================================
+        # -------------------------------------------------
+        # NEXT DAY (BLOCK SAME-DAY UNLOCK)  ✅ FIX
+        # -------------------------------------------------
         next_day = Days.objects.filter(
             journey_id=journey,
             order=day.order + 1
         ).first()
 
         if next_day:
-            UserDayProgress.objects.create(
-                user=user,
-                day_id=next_day,
-                status="current"
-            )
-
+            # ❌ SAME DAY NEXT DAY UNLOCK BLOCKED
             return Response(
                 {
                     "message": "Day completed successfully 🎉",
-                    "next_day_id": next_day.id,
-                    "next_day_order": next_day.order
+                    "reflection_saved": bool(reflection_note),
+                    "next_day_unlocked": False
                 },
                 status=200
             )
 
-        # =====================================================
-        # 🏁 JOURNEY COMPLETED
-        # =====================================================
+        # -------------------------------------------------
+        # Journey completed
+        # -------------------------------------------------
         journey_progress.status = "completed"
         journey_progress.completed = True
         journey_progress.save()
@@ -289,23 +303,15 @@ class CompleteDayView(APIView):
         sequence = persona.sequence
         current_index = sequence.index(journey.id)
 
-        # =====================================================
-        # ➡️ NEXT JOURNEY OR RESET
-        # =====================================================
         if current_index + 1 < len(sequence):
             next_journey = Journey.objects.get(id=sequence[current_index + 1])
         else:
-            # 🔄 RESET ALL PROGRESS
             UserDayProgress.objects.filter(user=user).delete()
             UserJourneyProgress.objects.filter(user=user).delete()
             UserDayItemProgress.objects.filter(user=user).delete()
-
             next_journey = Journey.objects.get(id=sequence[0])
 
-        # =====================================================
-        # ▶️ START NEXT JOURNEY
-        # =====================================================
-        new_journey_progress = UserJourneyProgress.objects.create(
+        UserJourneyProgress.objects.create(
             user=user,
             journey=next_journey,
             status="current",
@@ -327,6 +333,7 @@ class CompleteDayView(APIView):
         return Response(
             {
                 "message": "Journey completed 🎯 New journey started",
+                "reflection_saved": bool(reflection_note),
                 "new_journey_id": next_journey.id,
                 "first_day_id": first_day.id
             },
@@ -336,25 +343,38 @@ class CompleteDayView(APIView):
 
 
 
+
+
+
+from django.utils import timezone
+from rest_framework.views import APIView
+from rest_framework.response import Response
+from rest_framework.permissions import IsAuthenticated
+
+from .models import (
+    Days,
+    jourenystepitem,
+    UserDayProgress,
+    UserDayItemProgress
+)
+
+
 class CompleteDayItemView(APIView):
     permission_classes = [IsAuthenticated, HasActiveSubscription]
 
     def post(self, request):
         user = request.user
-        item_type = request.data.get("item_type")
+        item_type = request.data.get("item_type")   # prayer / devotion / action
         day_id = request.data.get("day_id")
-
-
 
         # -------------------------
         # 1️⃣ Validate item_type
         # -------------------------
-        ALLOWED_ITEMS = ["prayer", "devotion", "action"]
+        ALLOWED_ITEMS = ["prayer", "devotion", "action", "reflection"]
 
         if item_type not in ALLOWED_ITEMS:
-           
             return Response(
-                {"error": "Invalid item_type. Use prayer / devotion / action"},
+                {"error": "Invalid item_type. Use prayer / devotion / action / reflection"},
                 status=400
             )
 
@@ -362,49 +382,35 @@ class CompleteDayItemView(APIView):
         # 2️⃣ Validate day_id
         # -------------------------
         if not day_id:
-            
             return Response(
                 {"error": "day_id is required"},
                 status=400
             )
 
         day = Days.objects.filter(id=day_id).first()
-        print("DAY OBJECT:", day)
-
         if not day:
-            
             return Response(
                 {"error": "Invalid day_id"},
                 status=404
             )
 
         # -------------------------
-        # 3️⃣ DEBUG UserDayProgress
+        # 3️⃣ Check CURRENT day
         # -------------------------
-        all_dp = list(
-            UserDayProgress.objects.filter(user=user)
-            .values("id", "day_id_id", "status")
-        )
-
-       
-
         current_dp = UserDayProgress.objects.filter(
             user=user,
             day_id_id=day.id,
             status="current"
         ).first()
 
-       
-
         if not current_dp:
-            
             return Response(
                 {"error": "You can only complete items for the current day"},
                 status=400
             )
 
         # -------------------------
-        # 4️⃣ Create / Get item progress
+        # 4️⃣ User item progress (user-wise)
         # -------------------------
         obj, created = UserDayItemProgress.objects.get_or_create(
             user=user,
@@ -412,10 +418,7 @@ class CompleteDayItemView(APIView):
             item_type=item_type
         )
 
-        print("ITEM PROGRESS:", obj, "CREATED:", created)
-
         if obj.completed:
-           
             return Response(
                 {
                     "message": f"{item_type} already completed",
@@ -426,15 +429,27 @@ class CompleteDayItemView(APIView):
                 status=200
             )
 
-        # -------------------------
-        # 5️⃣ Mark item completed
-        # -------------------------
+        # mark user item completed
         obj.completed = True
         obj.completed_at = timezone.now()
         obj.save()
 
-        print("✅ ITEM MARKED COMPLETED")
+        # -------------------------
+        # 5️⃣ 🔥 UPDATE jourenystepitem TABLE
+        # -------------------------
+        step = jourenystepitem.objects.filter(
+            journey_id=day.journey_id,
+            days_id=day,
+            step_name=item_type
+        ).first()
 
+        if step:
+            step.is_completed = True
+            step.save()
+
+        # -------------------------
+        # 6️⃣ Final response
+        # -------------------------
         return Response(
             {
                 "message": f"{item_type} completed successfully",
@@ -444,3 +459,45 @@ class CompleteDayItemView(APIView):
             },
             status=200
         )
+
+
+
+from .models import jourenystepitem
+from .serializers import JourneyStepItemSerializer
+from rest_framework import status
+from django.shortcuts import get_object_or_404
+
+class allstepviews(APIView):
+    permission_classes = [IsAuthenticated]
+    def get(self, request, journey_id, day_id):
+        user = request.user
+        day = get_object_or_404(Days, id=day_id, journey_id=journey_id)
+        steps = jourenystepitem.objects.filter(
+            journey_id=journey_id,
+            days_id=day_id
+        )
+
+        serializer = JourneyStepItemSerializer(steps, many=True)
+        return Response({
+            "user_id": user.id,
+            "journey_id": journey_id,
+            "day_id": day_id,
+            "day_title": day.name,   # 👈 day title এখানে
+            "steps": serializer.data
+        })
+    def post(self, request, journey_id, day_id):
+        data = request.data.copy()
+        data["journey_id"] = journey_id
+        data["days_id"] = day_id
+
+        serializer = JourneyStepItemSerializer(data=data)
+        if serializer.is_valid():
+            serializer.save()
+            return Response(
+                {"message": "Step created successfully", "data": serializer.data},
+                status=status.HTTP_201_CREATED
+            )
+
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+     

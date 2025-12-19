@@ -70,3 +70,30 @@ class UserDayItemProgress(models.Model):
 
     class Meta:
         unique_together = ("user", "day", "item_type")
+
+
+
+
+class jourenystepitem(models.Model):
+
+    ITEM_CHOICES = (
+        ("prayer", "Daily Prayer"),
+        ("devotion", "Daily Devotion"),
+        ("action", "Today's Action"),
+        ("reflection", "Reflection Space"),
+      
+    )
+
+    journey_id = models.ForeignKey(Journey, on_delete=models.CASCADE)
+    days_id = models.ForeignKey(Days, on_delete=models.CASCADE)
+
+    step_name = models.CharField(max_length=20,choices=ITEM_CHOICES)
+
+    is_completed = models.BooleanField(default=False)
+
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        unique_together = ("days_id", "step_name")
+
