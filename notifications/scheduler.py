@@ -1,62 +1,32 @@
-# notifications/scheduler.py
 from apscheduler.schedulers.background import BackgroundScheduler
 from apscheduler.triggers.cron import CronTrigger
 from django_apscheduler.jobstores import DjangoJobStore
+from django.conf import settings
+import os
 
-from notifications.jobs import (
-    morning_journey_status,
-    prayer_notification,
-    devotion_notification,
-    quiz_notification,
-    action_notification,
-    reflection_notification,
-)
+from notifications.jobs import morning_journey_status
+
 
 def start():
-    scheduler = BackgroundScheduler()
+    """
+    APScheduler start
+    - Django dev server এ duplicate run আটকাতে RUN_MAIN check
+    """
+
+    #  Django auto-reload duplicate scheduler prevent
+    if os.environ.get("RUN_MAIN") != "true":
+        return
+
+    scheduler = BackgroundScheduler(timezone=settings.TIME_ZONE)
     scheduler.add_jobstore(DjangoJobStore(), "default")
 
+    #  প্রতিদিন সকালে: Today is Day X
     scheduler.add_job(
         morning_journey_status,
-        CronTrigger(hour=8, minute=5),
-        id="morning",
-        replace_existing=True,
-    )
-
-    scheduler.add_job(
-        prayer_notification,
-        CronTrigger(hour=8, minute=5),
-        id="prayer",
-        replace_existing=True,
-    )
-
-    scheduler.add_job(
-        devotion_notification,
-        CronTrigger(hour=8, minute=20),
-        id="devotion",
-        replace_existing=True,
-    )
-
-    scheduler.add_job(
-        quiz_notification,
-        CronTrigger(hour=8, minute=35),
-        id="quiz",
-        replace_existing=True,
-    )
-
-    scheduler.add_job(
-        action_notification,
-        CronTrigger(hour=8, minute=50),
-        id="action",
-        replace_existing=True,
-    )
-
-    scheduler.add_job(
-        reflection_notification,
-        CronTrigger(hour=9, minute=5),
-        id="reflection",
+        trigger=CronTrigger(hour=7, minute=0),  
+        id="morning_journey_status",
         replace_existing=True,
     )
 
     scheduler.start()
-
+    print("Notification Scheduler started")

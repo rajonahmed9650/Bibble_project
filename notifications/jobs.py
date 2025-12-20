@@ -1,6 +1,6 @@
 from notifications.utils import create_notification
 from notifications.helpers import get_current_stage
-from userprogress.models import UserJourneyProgress, UserDayItemProgress
+from userprogress.models import UserDayProgress, UserDayItemProgress
 
 STAGE_LABEL = {
     "prayer": "Prayer",
@@ -13,106 +13,52 @@ STAGE_LABEL = {
 # -------------------------
 # Morning Summary
 # -------------------------
+from userprogress.models import UserDayProgress
+
+from django.utils import timezone
+from notifications.utils import create_notification
+from userprogress.models import UserDayProgress
+from .models import Notification
+
 def morning_journey_status():
-    progresses = UserJourneyProgress.objects.filter(completed=False)
+    print("🔔 Morning Day Notification running...")
 
-    for p in progresses:
-        # ✅ এই user + এই journey এর current (incomplete) day
-        day_item = (
-            UserDayItemProgress.objects
-            .filter(
-                user=p.user,
-                day__journey_id=p.journey,
-                completed=False
-            )
-            .order_by("day__order")
-            .first()
-        )
+    today = timezone.localdate()
 
-        print("USER:", p.user)
-        print("DAY ITEM:", day_item)
+    current_days = UserDayProgress.objects.filter(status="current")
+    print(f"👉 Total current users: {current_days.count()}")
 
-        if not day_item:
+    for dp in current_days:
+        user = dp.user
+        day = dp.day_id
+        print("--------------------------------------------------")
+        print(f"👤 USER: {user.email}")
+        print(f"📅 DAY: Day {day.order} - {day.name}")
+
+        # ❌ same day duplicate prevent
+        already_sent = Notification.objects.filter(
+            user=user,
+            notification_type="daily",
+            created_at__date=today,
+            title__icontains="Today is Day"
+        ).exists()
+
+        if already_sent:
+            print("⚠️ Notification already sent today — SKIP")
             continue
-
-        day = day_item.day
-        stage = get_current_stage(p.user, day)
-
-        print("STAGE:", stage)
-
-        if not stage:
-            print("SKIP: No stage")
-            continue
-        print("CREATE NOTIFICATION NOW")
 
         create_notification(
-            user=p.user,
-            title="Your Journey Today",
-            message=f"Day {day.order}: {day.name}\nCurrent focus: {STAGE_LABEL[stage]}",
-            n_type="journey"
+            user=user,
+            title="Today's Journey",
+            message=f"Today is Day {day.order}: {day.name}",
+            n_type="daily"
         )
-
+        print("✅ NOTIFICATION SENT")
+        print(f"   Title   : Today's Journey")
+        print(f"   Message : Today is Day {day.order}: {day.name}")
 
 # -------------------------
 # Prayer
 # -------------------------
-def prayer_notification():
-    for p in UserJourneyProgress.objects.filter(completed=False):
-        create_notification(
-            p.user,
-            "Daily Prayer Reminder",
-            "It's time for your morning prayer.",
-            "prayer"
-        )
 
 
-# -------------------------
-# Devotion
-# -------------------------
-def devotion_notification():
-    for p in UserJourneyProgress.objects.filter(completed=False):
-        create_notification(
-            p.user,
-            "Your Daily Devotion is ready",
-            "Start your day with a moment of reflection.",
-            "daily"
-        )
-
-
-# -------------------------
-# Quiz
-# -------------------------
-def quiz_notification():
-    for p in UserJourneyProgress.objects.filter(completed=False):
-        create_notification(
-            p.user,
-            "Daily Quiz",
-            "Answer today’s quiz question.",
-            "system"
-        )
-
-
-# -------------------------
-# Action
-# -------------------------
-def action_notification():
-    for p in UserJourneyProgress.objects.filter(completed=False):
-        create_notification(
-            p.user,
-            "Take Action",
-            "Apply today’s lesson in your life.",
-            "system"
-        )
-
-
-# -------------------------
-# Reflection
-# -------------------------
-def reflection_notification():
-    for p in UserJourneyProgress.objects.filter(completed=False):
-        create_notification(
-            p.user,
-            "Reflection Time",
-            "Spend a moment reflecting on today.",
-            "system"
-        )

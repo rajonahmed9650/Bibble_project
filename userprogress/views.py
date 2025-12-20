@@ -109,7 +109,7 @@ class TodayStepView(APIView):
 
 
 class UserProgressDaysView(APIView):
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsAuthenticated,HasActiveSubscription]
 
     def get(self, request, journey_id):
         user = request.user
@@ -166,23 +166,14 @@ class UserProgressDaysView(APIView):
         })
 
 
-
-
-
-from django.db import transaction
-from django.utils import timezone
-
-
-
 from journey.models import Days, Journey, PersonaJourney
 from daily_devotion.models import DailyReflectionSpace
 
 
 from django.utils import timezone
 from django.db import transaction
-from rest_framework.views import APIView
-from rest_framework.response import Response
-from rest_framework.permissions import IsAuthenticated
+
+from notifications.utils import create_notification
 
 class CompleteDayView(APIView):
     permission_classes = [IsAuthenticated, HasActiveSubscription]
@@ -196,14 +187,14 @@ class CompleteDayView(APIView):
         reflection_note = request.data.get("reflection_note", "").strip()
 
         # -------------------------------------------------
-        # Rule: max 1 day per calendar day  ✅ FIX
+        # Rule: max 1 day per calendar day
         # -------------------------------------------------
         completed_today_count = UserDayProgress.objects.filter(
             user=user,
-            completed_at=today   # ✅ FIX (was completed_at=today)
+            completed_at=today
         ).count()
 
-        if completed_today_count >= 1:   # ✅ FIX (was >= 2)
+        if completed_today_count >= 1:
             return Response(
                 {"error": "You can complete only one day per calendar day"},
                 status=400
@@ -212,12 +203,13 @@ class CompleteDayView(APIView):
         # -------------------------------------------------
         # Get current day
         # -------------------------------------------------
-        current_dp = UserDayProgress.objects.filter(
-            user=user,
-            status="current"
-        ).select_related("day_id", "day_id__journey_id") \
-         .order_by("day_id__order") \
-         .first()
+        current_dp = (
+            UserDayProgress.objects
+            .filter(user=user, status="current")
+            .select_related("day_id", "day_id__journey_id")
+            .order_by("day_id__order")
+            .first()
+        )
 
         if not current_dp:
             return Response({"error": "No active day found"}, status=400)
@@ -263,7 +255,7 @@ class CompleteDayView(APIView):
         # Complete current day
         # -------------------------------------------------
         current_dp.status = "completed"
-        current_dp.completed_at = now   # ✅ FIX (was today)
+        current_dp.completed_at = now
         current_dp.save()
 
         journey_progress = UserJourneyProgress.objects.get(
@@ -273,8 +265,16 @@ class CompleteDayView(APIView):
         journey_progress.completed_days += 1
         journey_progress.save()
 
+        #  Day Completed Notification (ঠিক জায়গা)
+        create_notification(
+            user=user,
+            title="Day Completed 🎉",
+            message=f"You have completed Day {day.order}: {day.name}",
+            n_type="journey"
+        )
+
         # -------------------------------------------------
-        # NEXT DAY (BLOCK SAME-DAY UNLOCK)  ✅ FIX
+        # NEXT DAY (BLOCK SAME-DAY UNLOCK)
         # -------------------------------------------------
         next_day = Days.objects.filter(
             journey_id=journey,
@@ -282,7 +282,6 @@ class CompleteDayView(APIView):
         ).first()
 
         if next_day:
-            # ❌ SAME DAY NEXT DAY UNLOCK BLOCKED
             return Response(
                 {
                     "message": "Day completed successfully 🎉",
@@ -299,6 +298,16 @@ class CompleteDayView(APIView):
         journey_progress.completed = True
         journey_progress.save()
 
+        create_notification(
+            user=user,
+            title="Journey Completed ",
+            message=f"Congratulations! You completed the journey: {journey.name}",
+            n_type="journey"
+        )
+
+        # -------------------------------------------------
+        # Unlock next journey
+        # -------------------------------------------------
         persona = PersonaJourney.objects.get(persona=user.category)
         sequence = persona.sequence
         current_index = sequence.index(journey.id)
@@ -306,6 +315,7 @@ class CompleteDayView(APIView):
         if current_index + 1 < len(sequence):
             next_journey = Journey.objects.get(id=sequence[current_index + 1])
         else:
+            # restart from first journey
             UserDayProgress.objects.filter(user=user).delete()
             UserJourneyProgress.objects.filter(user=user).delete()
             UserDayItemProgress.objects.filter(user=user).delete()
@@ -324,10 +334,12 @@ class CompleteDayView(APIView):
             order=1
         ).first()
 
-        UserDayProgress.objects.create(
+        UserDayProgress.objects.update_or_create(
             user=user,
             day_id=first_day,
-            status="current"
+            defaults={
+                "status": "current"
+            }
         )
 
         return Response(
@@ -339,10 +351,6 @@ class CompleteDayView(APIView):
             },
             status=200
         )
-
-
-
-
 
 
 
@@ -468,7 +476,7 @@ from rest_framework import status
 from django.shortcuts import get_object_or_404
 
 class allstepviews(APIView):
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsAuthenticated,HasActiveSubscription]
     def get(self, request, journey_id, day_id):
         user = request.user
         day = get_object_or_404(Days, id=day_id, journey_id=journey_id)

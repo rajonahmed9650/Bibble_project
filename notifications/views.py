@@ -8,42 +8,46 @@ from .serializers import NotificationSerializer
 
 
 
+from django.utils import timezone
+
 class MarkNotificationReadView(APIView):
     permission_classes = [IsAuthenticated]
 
     def post(self, request, pk):
-        updated = Notification.objects.filter(
+        is_read = request.data.get("is_read", True)
+
+        Notification.objects.filter(
             id=pk,
-            user=request.user,
-            is_read=False
-        ).update(is_read=True)
+            user=request.user
+        ).update(is_read=is_read)
 
-        if updated == 0:
-            return Response(
-                {"message": "Already read or not found"},
-                status=status.HTTP_400_BAD_REQUEST
-            )
+        return Response({"message": "Notification marked as read"})
 
-        return Response(
-            {"message": "Notification marked as read"},
-            status=status.HTTP_200_OK
-        )
+
 
 
 class ClearAllNotificationsView(APIView):
     permission_classes = [IsAuthenticated]
 
     def post(self, request):
-        count = Notification.objects.filter(
+        is_read = request.data.get("is_read", True)
+
+        if is_read is not True:
+            return Response(
+                {"message": "Only is_read=true is allowed"},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        updated = Notification.objects.filter(
             user=request.user,
             is_read=False
         ).update(is_read=True)
 
         return Response({
-            "message": "All notifications marked as read",
-            "updated": count
-        })
-
+            "success": True,
+            "marked_read": updated,
+            "message": "All notifications marked as read"
+        }, status=status.HTTP_200_OK)
 
 
 
@@ -56,6 +60,8 @@ from datetime import timedelta
 
 
 class NotificationListView(APIView):
+    permission_classes = [IsAuthenticated]
+
     def get(self, request):
         user = request.user
         today = timezone.localdate()
@@ -63,15 +69,14 @@ class NotificationListView(APIView):
 
         qs = Notification.objects.filter(user=user)
 
-        def serialize(qs):
-            return [{
-                "title": n.title,
-                "message": n.message,
-                "type": n.notification_type,
-                "time": n.created_at.strftime("%I:%M %p")
-            } for n in qs]
-
         return Response({
-            "today": serialize(qs.filter(created_at__date=today)),
-            "yesterday": serialize(qs.filter(created_at__date=yesterday)),
+            "today": NotificationSerializer(
+                qs.filter(created_at__date=today),
+                many=True
+            ).data,
+
+            "yesterday": NotificationSerializer(
+                qs.filter(created_at__date=yesterday),
+                many=True
+            ).data,
         })
