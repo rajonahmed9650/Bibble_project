@@ -167,15 +167,22 @@ class UserProgressDaysView(APIView):
                 day_id__journey_id=journey_id
             )
         }
-        
+        is_new_user = not UserDayProgress.objects.filter(user=user).exists()
+
 
         result = []
         for day in days:
+            status = dp_map.get(day.id)
+            if not status:
+                if is_new_user and day.order == 1:
+                    status = "current"
+                else:
+                    status = "locked"
             result.append({
                 "day_id": day.id,
                 "day_name": day.name,
                 "order": day.order,
-                "status": dp_map.get(day.id, "locked")
+                "status": status
             })
 
         return Response({
