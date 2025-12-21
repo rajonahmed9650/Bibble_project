@@ -10,7 +10,7 @@ from notifications.jobs import morning_journey_status
 def start():
     """
     APScheduler start
-    - Django dev server এ duplicate run আটকাতে RUN_MAIN check
+   
     """
 
     #  Django auto-reload duplicate scheduler prevent
@@ -20,10 +20,10 @@ def start():
     scheduler = BackgroundScheduler(timezone=settings.TIME_ZONE)
     scheduler.add_jobstore(DjangoJobStore(), "default")
 
-    #  প্রতিদিন সকালে: Today is Day X
+
     scheduler.add_job(
         morning_journey_status,
-        trigger=CronTrigger(hour=7, minute=0),  
+        trigger=CronTrigger(minute="*/2"),  
         id="morning_journey_status",
         replace_existing=True,
     )

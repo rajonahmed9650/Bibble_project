@@ -11,6 +11,7 @@ from .serializers import JourneySerilzers,JourneyDetailsSerializer,Journey_icon,
 from payments.permissions import HasActiveSubscription
 from .serializers import JourneyWithStatusSerializer
 from .models import PersonaJourney
+from userprogress.models import UserJourneyProgress
 
 
 # JOURNEY VIEW
@@ -252,6 +253,21 @@ class UserJourneySequenceView(APIView):
 
         persona = PersonaJourney.objects.get(persona=user.category)
         sequence = persona.sequence
+
+# ENSURE FIRST JOURNEY IS UNLOCKED FOR NEW USER
+        current_progress = UserJourneyProgress.objects.filter(
+            user=user,
+            status="current"
+        ).first()
+
+        if not current_progress:
+            UserJourneyProgress.objects.get_or_create(
+                user=user,
+                journey_id=sequence[0],
+                defaults={"status": "current"}
+            )
+
+
 
         journeys = Journey.objects.filter(id__in=sequence)
         ordered = sorted(journeys, key=lambda j: sequence.index(j.id))

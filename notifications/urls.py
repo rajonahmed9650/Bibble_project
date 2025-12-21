@@ -10,7 +10,7 @@ from .views import (
 
 urlpatterns = [
     path("", NotificationListView.as_view()),
-    path("<int:pk>/read/", MarkNotificationReadView.as_view()),
+    path("read/<int:pk>/", MarkNotificationReadView.as_view()),
     path("clear/", ClearAllNotificationsView.as_view()),
 
 ]

@@ -283,12 +283,22 @@ class LoginView(APIView):
             token, expire = create_jwt_token_for_user(user.id)
             save_session(user, token, expire)
 
+            has_active_plan = Subscription.objects.filter(
+                user=user,
+                is_active=True,
+                expired_at__gt=timezone.now()
+            ).exists()
 
             return Response({
                 "status": "success",
                 "login_by": "email",
                 "token": token,
-                "plan_selection_needed": True,
+                "plan_selection_needed":  has_active_plan,
+                "trial_expired": (
+                    "Your subscription has expired. Please renew your plan."
+                    if not has_active_plan
+                    else "Subscription active"
+                 ),
                 "category": user.category
             })
 

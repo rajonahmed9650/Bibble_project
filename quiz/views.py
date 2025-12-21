@@ -3,7 +3,7 @@ from rest_framework.response import Response
 from rest_framework import status
 from rest_framework.permissions import IsAuthenticated
 from django.shortcuts import get_object_or_404
-
+from .models import QuizAnswer
 from .models import DailyQuiz, QuizAnswerOption
 from .serializers import (
     DailyQuizCreateSerializer,
@@ -108,14 +108,6 @@ class MultipleSubmitQuizAnswer(APIView):
     permission_classes = [IsAuthenticated]
 
     def post(self, request):
-        serializer = MultipleQuizAnswerSubmitSerializer(
-            data=request.data,
-            context={"request": request}
-        )
-        serializer.is_valid(raise_exception=True)
-        data = serializer.save()
-
-        # ✅ ADD START — quiz completion tracking
         user = request.user
 
         current_dp = UserDayProgress.objects.filter(
@@ -123,19 +115,44 @@ class MultipleSubmitQuizAnswer(APIView):
             status="current"
         ).select_related("day_id").first()
 
-        if current_dp:
-            UserDayItemProgress.objects.update_or_create(
-                user=user,
-                day=current_dp.day_id,
-                item_type="quiz",
-                defaults={
-                    "completed": True,
-                    "completed_at": timezone.now()
-                }
-            )
-        # ✅ ADD END
+        if not current_dp:
+            return Response({"error": "No active day"}, status=400)
 
-        return Response(data, status=200)
+        # DELETE old answers (important)
+        QuizAnswer.objects.filter(
+            user_id=user,
+            daily_quiz_id__days_id=current_dp.day_id
+        ).delete()
 
+        #  Save new answers
+        serializer = MultipleQuizAnswerSubmitSerializer(
+            data=request.data,
+            context={"request": request}
+        )
+        serializer.is_valid(raise_exception=True)
+        serializer.save()
+
+        # Quiz progress
+        quiz_progress, _ = UserDayItemProgress.objects.get_or_create(
+            user=user,
+            day=current_dp.day_id,
+            item_type="quiz"
+        )
+
+        quiz_progress.completed = True
+        quiz_progress.completed_at = timezone.now()
+        quiz_progress.save()
+
+        # Recalculate points
+        points = QuizAnswer.objects.filter(
+            user_id=user,
+            daily_quiz_id__days_id=current_dp.day_id,
+            points=1
+        ).count()
+
+        return Response({
+            "message": "Quiz submitted successfully",
+            "points_added": points
+        }, status=200)
 
 

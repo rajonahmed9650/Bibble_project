@@ -33,6 +33,8 @@ class QuizAnswer(models.Model):
     quiz_answer_option_id = models.ForeignKey(QuizAnswerOption,on_delete=models.CASCADE)
     points = models.IntegerField()
 
+    class Meta:
+        unique_together = ("daily_quiz_id", "user_id")
 
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)

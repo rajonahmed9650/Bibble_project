@@ -80,7 +80,7 @@ class DailyQuizReadSerializer(serializers.ModelSerializer):
 
 
 
-from django.db import models
+
 
 class MultipleQuizAnswerSubmitSerializer(serializers.Serializer):
     answers = serializers.ListField()
@@ -92,56 +92,34 @@ class MultipleQuizAnswerSubmitSerializer(serializers.Serializer):
             quiz_id = ans.get("daily_quiz_id")
             option_id = ans.get("quiz_answer_option_id")
 
-            # Check quiz
-            try:
-                quiz = DailyQuiz.objects.get(id=quiz_id)
-            except DailyQuiz.DoesNotExist:
-                raise serializers.ValidationError({"daily_quiz_id": f"Quiz {quiz_id} not found"})
+            quiz = DailyQuiz.objects.get(id=quiz_id)
+            option = QuizAnswerOption.objects.get(id=option_id)
 
-            # Check option
-            try:
-                option = QuizAnswerOption.objects.get(id=option_id)
-            except QuizAnswerOption.DoesNotExist:
-                raise serializers.ValidationError({"quiz_answer_option_id": f"Option {option_id} not found"})
-
-            # Check relation
             if option.daily_quiz_id_id != quiz.id:
-                raise serializers.ValidationError({
-                    "quiz_answer_option_id": "Option does not belong to the quiz"
-                })
+                raise serializers.ValidationError(
+                    "Option does not belong to the quiz"
+                )
 
             validated.append((quiz, option))
 
         return {"validated": validated}
 
     def create(self, validated_data):
-        request = self.context["request"]
-        user = request.user
-
-        total_points = 0
+        user = self.context["request"].user
         validated = validated_data["validated"]
 
-        # Save all answers
         for quiz, option in validated:
-            point = 1 if option.is_correct else 0
-            total_points += point
-
-            QuizAnswer.objects.create(
+            # ✅ ANSWER UPDATE OR CREATE (CHANGE ALLOWED)
+            QuizAnswer.objects.update_or_create(
                 daily_quiz_id=quiz,
-                quiz_answer_option_id=option,
                 user_id=user,
-                points=point
+                defaults={
+                    "quiz_answer_option_id": option,
+                    "points": 1 if option.is_correct else 0
+                }
             )
 
-        # Count total points for SAME DAY
-        day = validated[0][0].days_id
-        day_points = QuizAnswer.objects.filter(
-            user_id=user,
-            daily_quiz_id__days_id=day
-        ).aggregate(total=models.Sum("points"))["total"] or 0
-
         return {
-            "user_id": user.id,
-            "total_points_for_day": day_points,
-            # "answers_saved": len(validated)
+            "submitted": len(validated)
         }
+

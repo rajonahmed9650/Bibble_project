@@ -24,26 +24,40 @@ class TodayStepView(APIView):
     def get(self, request, step):
         user = request.user
 
-        persona = PersonaJourney.objects.filter(persona=user.category).first()
+        # -----------------------------
+        # PERSONA & SEQUENCE
+        # -----------------------------
+        persona = PersonaJourney.objects.filter(
+            persona=user.category
+        ).first()
+
+        if not persona:
+            return Response({"error": "Persona not found"}, status=400)
+
         sequence = persona.sequence
 
-        # current journey
+        # -----------------------------
+        # CURRENT JOURNEY (SAFE)
+        # -----------------------------
         progress = UserJourneyProgress.objects.filter(
-            user=user, status="current"
+            user=user,
+            status="current"
         ).first()
 
         if not progress:
-            progress = UserJourneyProgress.objects.create(
+            progress, _ = UserJourneyProgress.objects.get_or_create(
                 user=user,
                 journey_id=sequence[0],
-                status="current"
+                defaults={"status": "current"}
             )
 
-        # current day
+        # -----------------------------
+        # CURRENT DAY (CRITICAL FIX)
+        # -----------------------------
+        # ❗ status ignore করে check
         current_dp = UserDayProgress.objects.filter(
             user=user,
-            day_id__journey_id=progress.journey,
-            status="current"
+            day_id__journey_id=progress.journey
         ).select_related("day_id").first()
 
         if not current_dp:
@@ -52,25 +66,33 @@ class TodayStepView(APIView):
                 order=1
             ).first()
 
-            current_dp = UserDayProgress.objects.create(
+            if not first_day:
+                return Response({"error": "Day not found"}, status=400)
+
+            current_dp, _ = UserDayProgress.objects.get_or_create(
                 user=user,
                 day_id=first_day,
-                status="current"
+                defaults={"status": "current"}
             )
+        else:
+            # যদি থাকে কিন্তু current না হয়
+            if current_dp.status != "current":
+                current_dp.status = "current"
+                current_dp.save()
 
         day = current_dp.day_id
 
-
-        # ✅ ADD HERE – load step progress (DO NOT REMOVE ANYTHING)
+        # -----------------------------
+        # STEP PROGRESS
+        # -----------------------------
         step_progress = UserDayItemProgress.objects.filter(
             user=user,
             day=day,
             item_type=step
         ).first()
 
-
         # -----------------------------
-        # STEP BASED RESPONSE
+        # STEP DATA
         # -----------------------------
         if step == "prayer":
             obj = DailyPrayer.objects.filter(day_id=day).first()
@@ -91,6 +113,9 @@ class TodayStepView(APIView):
         else:
             return Response({"error": "Invalid step"}, status=400)
 
+        # -----------------------------
+        # RESPONSE
+        # -----------------------------
         return Response({
             "journey": {
                 "id": progress.journey.id,
