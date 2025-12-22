@@ -431,36 +431,98 @@ class LogoutView(APIView):
 
 
 import requests
+from journey.models import PersonaJourney, Journey, Days
+from userprogress.models import UserJourneyProgress, UserDayProgress
+
+from django.db import transaction
 
 class CategorizeView(APIView):
     permission_classes = [IsAuthenticated]
 
-    def post(self,request):
+    @transaction.atomic
+    def post(self, request):
         user = request.user
         qa_pairs = request.data.get("qa_pairs")
+
         if not qa_pairs:
-            return Response({"error":"qa_pairs is required"},status=status.HTTP_400_BAD_REQUEST)
+            return Response(
+                {"error": "qa_pairs is required"},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
         if user.category:
-            return Response({"message":"You already have a category assigned"})
-        
+            return Response(
+                {"message": "You already have a category assigned"},
+                status=status.HTTP_200_OK
+            )
+
+        # 🔹 External categorization API
         external_url = "http://206.162.244.131:8001/api/categorize/"
-
-        response = requests.post(external_url,json={"qa_pairs":qa_pairs})
-
+        response = requests.post(external_url, json={"qa_pairs": qa_pairs})
         data = response.json()
 
         category = data.get("category")
-
         if not category:
-            return Response({"error":"No category returned"},status=status.HTTP_502_BAD_GATEWAY)
+            return Response(
+                {"error": "No category returned"},
+                status=status.HTTP_502_BAD_GATEWAY
+            )
+
+        # 🔹 Save category
         user.category = category
         user.save()
 
-        return Response({
-            "message":"Category saved successfully",
-            "category":user.category
-        })
-    
+        # 🔰 Bootstrap first journey & first day
+        persona = PersonaJourney.objects.filter(persona=category).first()
+
+        if not persona or not persona.sequence:
+            return Response(
+                {"error": "Persona or journey sequence not configured"},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
+
+        # 1️⃣ First journey
+        first_journey = Journey.objects.filter(
+            id=persona.sequence[0]
+        ).first()
+
+        if not first_journey:
+            return Response(
+                {"error": "Invalid journey configuration"},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
+
+        # 2️⃣ Journey progress (SAFE)
+        UserJourneyProgress.objects.get_or_create(
+            user=user,
+            journey=first_journey,
+            defaults={
+                "status": "current",
+                "completed_days": 0,
+                "completed": False
+            }
+        )
+
+        # 3️⃣ First day
+        first_day = Days.objects.filter(
+            journey_id=first_journey,
+            order=1
+        ).first()
+
+        if first_day:
+            UserDayProgress.objects.get_or_create(
+                user=user,
+                day_id=first_day,
+                defaults={"status": "current"}
+            )
+
+        return Response(
+            {
+                "message": "Category saved successfully",
+                "category": user.category
+            },
+            status=status.HTTP_200_OK
+        )
 
 
 from django.contrib.auth import authenticate

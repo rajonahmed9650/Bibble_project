@@ -36,7 +36,7 @@ class UserDayProgress(models.Model):
     user = models.ForeignKey(User, on_delete=models.CASCADE)
     day_id = models.ForeignKey(Days, on_delete=models.CASCADE)
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default="locked")
-    completed_at = models.DateField(null=True, blank=True) 
+    completed_at = models.DateTimeField(null=True, blank=True) 
 
     class Meta:
         unique_together = ("user", "day_id")

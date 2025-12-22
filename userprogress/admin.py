@@ -10,6 +10,12 @@ class UserDayProgressAdmin(admin.ModelAdmin):
     ordering = ("id",)
 
 admin.site.register(UserDayProgress,UserDayProgressAdmin)
+class UseryDayItemprogressAdmin(admin.ModelAdmin):
+    list_display = ("user","day","completed")
 
-admin.site.register(UserDayItemProgress)
-admin.site.register(jourenystepitem)
+admin.site.register(UserDayItemProgress,UseryDayItemprogressAdmin)
+
+class JourneySetpItem(admin.ModelAdmin):
+    list_display = ("journey_id","days_id","is_completed")
+
+admin.site.register(jourenystepitem,JourneySetpItem)
