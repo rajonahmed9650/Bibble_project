@@ -1,5 +1,5 @@
 from django.contrib import admin
-from .models import DailyDevotion,DailyPrayer,MicroAction
+from .models import DailyDevotion,DailyPrayer,MicroAction,DailyReflectionSpace
 # Register your models here.
 class DailyDevotionAdmin(admin.ModelAdmin):
     list_display = ("id","scripture_name",)
@@ -18,3 +18,4 @@ class MicroActionAdmin(admin.ModelAdmin):
     ordering =("id",)
 
 admin.site.register(MicroAction,MicroActionAdmin)
+admin.site.register(DailyReflectionSpace)

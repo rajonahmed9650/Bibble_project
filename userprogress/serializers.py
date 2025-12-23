@@ -8,6 +8,5 @@ class JourneyStepItemSerializer(serializers.ModelSerializer):
             "id",
             "journey_id",
             "days_id",
-            "step_name",
-            "is_completed"
+            "step_name",      
         ]

@@ -21,21 +21,19 @@ from userprogress.models import UserDayProgress
 from .models import Notification
 
 def morning_journey_status():
-    print("🔔 Morning Day Notification running...")
+    
 
     today = timezone.localdate()
 
     current_days = UserDayProgress.objects.filter(status="current")
-    print(f"👉 Total current users: {current_days.count()}")
+  
 
     for dp in current_days:
         user = dp.user
         day = dp.day_id
-        print("--------------------------------------------------")
-        print(f"👤 USER: {user.email}")
-        print(f"📅 DAY: Day {day.order} - {day.name}")
 
-        # ❌ same day duplicate prevent
+
+        #  same day duplicate prevent
         already_sent = Notification.objects.filter(
             user=user,
             notification_type="daily",
@@ -44,7 +42,7 @@ def morning_journey_status():
         ).exists()
 
         if already_sent:
-            print("⚠️ Notification already sent today — SKIP")
+            
             continue
 
         create_notification(
@@ -53,9 +51,7 @@ def morning_journey_status():
             message=f"Today is Day {day.order}: {day.name}",
             n_type="daily"
         )
-        print("✅ NOTIFICATION SENT")
-        print(f"   Title   : Today's Journey")
-        print(f"   Message : Today is Day {day.order}: {day.name}")
+    
 
 # -------------------------
 # Prayer

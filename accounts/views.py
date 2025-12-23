@@ -436,6 +436,7 @@ from userprogress.models import UserJourneyProgress, UserDayProgress
 
 from django.db import transaction
 
+
 class CategorizeView(APIView):
     permission_classes = [IsAuthenticated]
 
@@ -445,72 +446,61 @@ class CategorizeView(APIView):
         qa_pairs = request.data.get("qa_pairs")
 
         if not qa_pairs:
-            return Response(
-                {"error": "qa_pairs is required"},
-                status=status.HTTP_400_BAD_REQUEST
-            )
+            return Response({"error": "qa_pairs is required"}, status=400)
 
         if user.category:
-            return Response(
-                {"message": "You already have a category assigned"},
-                status=status.HTTP_200_OK
-            )
+            return Response({"message": "Category already assigned"}, status=200)
 
-        # 🔹 External categorization API
-        external_url = "http://206.162.244.131:8001/api/categorize/"
-        response = requests.post(external_url, json={"qa_pairs": qa_pairs})
+        # 🔹 External categorization
+        response = requests.post(
+            "http://206.162.244.131:8001/api/categorize/",
+            json={"qa_pairs": qa_pairs},
+            timeout=10
+        )
         data = response.json()
 
         category = data.get("category")
         if not category:
-            return Response(
-                {"error": "No category returned"},
-                status=status.HTTP_502_BAD_GATEWAY
-            )
+            return Response({"error": "No category returned"}, status=502)
 
-        # 🔹 Save category
         user.category = category
         user.save()
 
-        # 🔰 Bootstrap first journey & first day
-        persona = PersonaJourney.objects.filter(persona=category).first()
+        # =================================================
+        # 🔥 CRITICAL FIX: CLEAN OLD JOURNEYS
+        # =================================================
+        UserJourneyProgress.objects.filter(
+            user=user
+        ).update(status="locked")
 
-        if not persona or not persona.sequence:
-            return Response(
-                {"error": "Persona or journey sequence not configured"},
-                status=status.HTTP_500_INTERNAL_SERVER_ERROR
-            )
-
-        # 1️⃣ First journey
-        first_journey = Journey.objects.filter(
-            id=persona.sequence[0]
+        persona = PersonaJourney.objects.filter(
+            persona=category
         ).first()
 
-        if not first_journey:
-            return Response(
-                {"error": "Invalid journey configuration"},
-                status=status.HTTP_500_INTERNAL_SERVER_ERROR
-            )
+        if not persona or not persona.sequence:
+            return Response({"error": "Persona sequence not configured"}, status=500)
 
-        # 2️⃣ Journey progress (SAFE)
-        UserJourneyProgress.objects.get_or_create(
+        # 1️⃣ FIRST JOURNEY (sequence[0])
+        first_journey = Journey.objects.get(id=persona.sequence[0])
+
+        UserJourneyProgress.objects.update_or_create(
             user=user,
             journey=first_journey,
             defaults={
                 "status": "current",
-                "completed_days": 0,
-                "completed": False
+                "completed": False,
+                "completed_days": 0
             }
         )
 
-        # 3️⃣ First day
+        # 2️⃣ FIRST DAY
         first_day = Days.objects.filter(
             journey_id=first_journey,
             order=1
         ).first()
 
         if first_day:
-            UserDayProgress.objects.get_or_create(
+            UserDayProgress.objects.update_or_create(
                 user=user,
                 day_id=first_day,
                 defaults={"status": "current"}
@@ -519,9 +509,9 @@ class CategorizeView(APIView):
         return Response(
             {
                 "message": "Category saved successfully",
-                "category": user.category
+                "category": category
             },
-            status=status.HTTP_200_OK
+            status=200
         )
 
 

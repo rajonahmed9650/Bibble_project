@@ -79,4 +79,5 @@ class NotificationListView(APIView):
                 qs.filter(created_at__date=yesterday),
                 many=True
             ).data,
+            "unread_message": qs.filter(is_read=False).count(),
         })

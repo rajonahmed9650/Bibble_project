@@ -29,4 +29,4 @@ def start():
     )
 
     scheduler.start()
-    print("Notification Scheduler started")
+   
