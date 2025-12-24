@@ -81,6 +81,7 @@ MIDDLEWARE = [
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
     'django.contrib.auth.middleware.AuthenticationMiddleware',
+    'payments.utils.SubscriptionExpiryMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
 ]
@@ -198,6 +199,7 @@ STRIPE_SECRET_KEY = os.getenv("STRIPE_SECRET_KEY")
 STRIPE_PUBLISHABLE_KEY =os.getenv("STRIPE_PUBLISHABLE_KEY")
 STRIPE_MONTHLY_PRICE = os.getenv("STRIPE_MONTHLY_PRICE")
 STRIPE_YEARLY_PRICE = os.getenv("STRIPE_YEARLY_PRICE")
+STRIPE_WEEKLY_PRICE = os.getenv("STRIPE_WEEKLY_PRICE")
 STRIPE_WEBHOOK_SECRET = os.getenv("STRIPE_WEBHOOK_SECRET")
 
 

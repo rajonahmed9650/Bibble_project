@@ -37,7 +37,7 @@ class CreateCheckoutSession(APIView):
             return Response({"error":"Invalid package"},status=400)
         pkg_name = pkg.package_name.lower()
 
-        if plan in ["monthly","yearly"] and pkg_name == "free":
+        if plan in ["weekly","monthly","yearly"] and pkg_name == "free":
             return Response({
                 "status":"blocked",
                 "message":"You cannot choose paid plan for a free package."
@@ -53,10 +53,10 @@ class CreateCheckoutSession(APIView):
         # select stripe price id
         if plan== "free":
             if sub.expired_at and timezone.now() < sub.expired_at:     
-                remaining = (sub.expired_at - timezone.now()).days
+                remaining_seconds = int((sub.expired_at - timezone.now()).total_seconds())
                 return Response({
                     "status":"trial-active",
-                    "message":f"{remaining} days free subscription active"
+                    "message":f"{remaining_seconds} days free subscription active"
                 },status=200)
             
             return Response({
@@ -69,6 +69,8 @@ class CreateCheckoutSession(APIView):
             price_id = pkg.stripe_monthly_price_id
         elif plan == "yearly":
             price_id = pkg.stripe_yearly_price_id
+        elif plan == "weekly":
+            price_id = pkg.stripe_weekly_price_id    
         else:
             return Response({"error": "Invalid plan"}, status=400)
 
@@ -147,6 +149,8 @@ class StripeWebhook(APIView):
                 sub.expired_at = now + timedelta(days=30)
             elif plan == "yearly":
                 sub.expired_at = now + timedelta(days=365)
+            elif plan == "weekly":
+                sub.expired_at = now + timedelta(days=7)    
 
             sub.package = pkg
             sub.current_plan = plan
@@ -195,7 +199,8 @@ class StripeWebhook(APIView):
             sub.current_plan = "free"
             sub.package = free_pkg
             sub.stripe_subscription_id = None
-            sub.expired_at = timezone.now() + timedelta(days=7)
+            sub.expired_at = timezone.now() + timedelta(minutes=3)
+
             sub.is_active = True
             sub.save()
 

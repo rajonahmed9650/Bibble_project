@@ -1,36 +1,31 @@
-# payments/utils.py
-
 from django.utils import timezone
-from datetime import timedelta
-from .models import Subscription
+from payments.models import Subscription, Package
 
-from accounts.utils.messages import SYSTEM_MESSAGES
+class SubscriptionExpiryMiddleware:
+    def __init__(self, get_response):
+        self.get_response = get_response
 
-# def set_premium_expire(user, plan):
-#     sub = Subscription.objects.get(user=user)
+    def __call__(self, request):
+        user = request.user
 
-#     now = timezone.now()
+        # শুধু logged-in user এর জন্য
+        if user.is_authenticated:
+            sub = Subscription.objects.filter(
+                user=user,
+                is_active=True
+            ).first()
 
-#     if plan == "monthly":
-#         sub.expired_at = now + timedelta(days=30)
+            if (
+                sub and
+                sub.expired_at and
+                sub.expired_at < timezone.now()
+            ):
+                # EXPIRED → AUTO DEACTIVATE
+                free_pkg = Package.objects.filter(package_name="free").first()
 
-#     elif plan == "yearly":
-#         sub.expired_at = now + timedelta(days=365)
+                sub.is_active = False
+                sub.current_plan = "free"
+                sub.package = free_pkg
+                sub.save(update_fields=["is_active", "current_plan", "package"])
 
-#     sub.current_plan = plan
-#     sub.is_active = True
-#     sub.save()
-
-#     return sub
-
-def deactivate_expired_subscriptions():
-    subs = Subscription.objects.filter(is_active=True)
-
-    for sub in subs:
-        # expired if date passed
-        if sub.expired_at and sub.expired_at < timezone.now():
-            sub.is_active = False
-            sub.current_plan = "free"
-            sub.save()
-
-          
+        return self.get_response(request)

@@ -4,7 +4,7 @@ from .models import Subscription,Package
 admin.site.register(Subscription)
 
 class PackageAdmin(admin.ModelAdmin):
-    list_display = ("id","package_name","monthly_price","yearly_price")
+    list_display = ("id","package_name","monthly_price","yearly_price","weekly_price")
 
     ordering = ("id",)
 

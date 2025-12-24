@@ -26,6 +26,11 @@ class Package(models.Model):
         decimal_places=2,
         default=0
     )
+    weekly_price = models.DecimalField(
+        max_digits=7,
+        decimal_places=2,
+        default=0
+    )
 
     # Correct Stripe Price ID fields
     stripe_monthly_price_id = models.CharField(
@@ -35,6 +40,11 @@ class Package(models.Model):
     )
 
     stripe_yearly_price_id = models.CharField(
+        max_length=255,
+        blank=True,
+        null=True
+    )
+    stripe_weekly_price_id = models.CharField(
         max_length=255,
         blank=True,
         null=True
@@ -51,6 +61,7 @@ class Subscription(models.Model):
         ("free", "Free"),
         ("monthly", "Monthly"),
         ("yearly", "Yearly"),
+        ("weekly","Weekly"),
         ("none", "None"),
     ]
 
