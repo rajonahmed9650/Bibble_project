@@ -230,9 +230,5 @@ CSRF_TRUSTED_ORIGINS = [
     "https://thymiest-layton-doctrinally.ngrok-free.dev",
 ]
 
-
-# settings.py
-
-
 TIME_ZONE = "Asia/Dhaka"
 USE_TZ = True
