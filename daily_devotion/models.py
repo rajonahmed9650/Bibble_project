@@ -6,7 +6,7 @@ User = get_user_model()
 class DailyDevotion(models.Model):
     journey_id = models.ForeignKey(Journey, on_delete=models.CASCADE)
     day_id = models.ForeignKey(Days, on_delete=models.CASCADE)
-    scripture_name = models.CharField()
+    scripture_name = models.CharField(max_length=255)
     devotion = models.TextField()
     reflection = models.TextField()
 
@@ -50,7 +50,7 @@ class DailyPrayer(models.Model):
 class MicroAction(models.Model):
     journey_id = models.ForeignKey(Journey, on_delete=models.CASCADE)
     day_id = models.ForeignKey(Days, on_delete=models.CASCADE)
-    action = models.CharField()
+    action = models.CharField(max_length=255)
 
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
