@@ -50,3 +50,5 @@ tzlocal==5.3.1
 ujson==5.11.0
 urllib3==2.5.0
 zope.interface==8.1.1
+whitenoise
+
