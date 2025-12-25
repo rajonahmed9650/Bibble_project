@@ -50,7 +50,7 @@ class DailyPrayer(models.Model):
 class MicroAction(models.Model):
     journey_id = models.ForeignKey(Journey, on_delete=models.CASCADE)
     day_id = models.ForeignKey(Days, on_delete=models.CASCADE)
-    action = models.CharField(max_length=255)
+    action = models.CharField(max_length=255,null=True,blank=True)
 
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
