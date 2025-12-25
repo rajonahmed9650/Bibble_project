@@ -20,6 +20,7 @@ djangorestframework==3.16.1
 dotenv==0.9.9
 google-auth==2.41.1
 google-auth-oauthlib==1.2.3
+gunicorn==23.0.0
 hyperlink==21.0.0
 idna==3.11
 Incremental==24.11.0
