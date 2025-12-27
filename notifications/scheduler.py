@@ -8,11 +8,6 @@ from notifications.jobs import morning_journey_status
 
 
 def start():
-    """
-    APScheduler start
-   
-    """
-
     #  Django auto-reload duplicate scheduler prevent
     if os.environ.get("RUN_MAIN") != "true":
         return

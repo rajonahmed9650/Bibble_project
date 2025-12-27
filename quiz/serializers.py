@@ -81,23 +81,40 @@ class DailyQuizReadSerializer(serializers.ModelSerializer):
 
 
 
-
 class MultipleQuizAnswerSubmitSerializer(serializers.Serializer):
-    answers = serializers.ListField()
+    answers = serializers.ListField(child=serializers.DictField())
 
     def validate(self, data):
         validated = []
+        seen_quiz_ids = set()
 
         for ans in data["answers"]:
             quiz_id = ans.get("daily_quiz_id")
             option_id = ans.get("quiz_answer_option_id")
 
-            quiz = DailyQuiz.objects.get(id=quiz_id)
-            option = QuizAnswerOption.objects.get(id=option_id)
-
-            if option.daily_quiz_id_id != quiz.id:
+            if not quiz_id or not option_id:
                 raise serializers.ValidationError(
-                    "Option does not belong to the quiz"
+                    "daily_quiz_id and quiz_answer_option_id are required"
+                )
+
+            # 🚫 BLOCK duplicate quiz in same request
+            if quiz_id in seen_quiz_ids:
+                raise serializers.ValidationError(
+                    f"Duplicate answer submitted for quiz {quiz_id}"
+                )
+            seen_quiz_ids.add(quiz_id)
+
+            quiz = DailyQuiz.objects.filter(id=quiz_id).first()
+            if not quiz:
+                raise serializers.ValidationError("Invalid quiz")
+
+            option = QuizAnswerOption.objects.filter(
+                id=option_id,
+                daily_quiz_id=quiz
+            ).first()
+            if not option:
+                raise serializers.ValidationError(
+                    "Invalid option for this quiz"
                 )
 
             validated.append((quiz, option))
@@ -108,18 +125,21 @@ class MultipleQuizAnswerSubmitSerializer(serializers.Serializer):
         user = self.context["request"].user
         validated = validated_data["validated"]
 
+        total_points = 0
+
         for quiz, option in validated:
-            # ✅ ANSWER UPDATE OR CREATE (CHANGE ALLOWED)
-            QuizAnswer.objects.update_or_create(
+            points = 1 if option.is_correct else 0
+            total_points += points
+
+            QuizAnswer.objects.create(
                 daily_quiz_id=quiz,
                 user_id=user,
-                defaults={
-                    "quiz_answer_option_id": option,
-                    "points": 1 if option.is_correct else 0
-                }
+                quiz_answer_option_id=option,
+                points=points
             )
 
         return {
-            "submitted": len(validated)
+            "submitted": len(validated),
+            "points": total_points
         }
 

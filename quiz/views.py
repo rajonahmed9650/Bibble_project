@@ -103,10 +103,13 @@ class QuizOptionDetail(APIView):
 from django.utils import timezone
 from userprogress.models import UserDayItemProgress, UserDayProgress
 
+from django.db.models import Sum
+from django.db import transaction
 
 class MultipleSubmitQuizAnswer(APIView):
     permission_classes = [IsAuthenticated]
 
+    @transaction.atomic
     def post(self, request):
         user = request.user
 
@@ -118,41 +121,39 @@ class MultipleSubmitQuizAnswer(APIView):
         if not current_dp:
             return Response({"error": "No active day"}, status=400)
 
-        # DELETE old answers (important)
+        day = current_dp.day_id
+
+        #  Delete previous answers for this day
+# Delete previous answers ONLY for quizzes in payload
+        quiz_ids = [
+            ans.get("daily_quiz_id")
+            for ans in request.data.get("answers", [])
+            if ans.get("daily_quiz_id")
+        ]
+
         QuizAnswer.objects.filter(
             user_id=user,
-            daily_quiz_id__days_id=current_dp.day_id
+            daily_quiz_id_id__in=quiz_ids
         ).delete()
 
-        #  Save new answers
+
         serializer = MultipleQuizAnswerSubmitSerializer(
             data=request.data,
             context={"request": request}
         )
         serializer.is_valid(raise_exception=True)
-        serializer.save()
+        result = serializer.save()
 
-        # Quiz progress
         quiz_progress, _ = UserDayItemProgress.objects.get_or_create(
             user=user,
-            day=current_dp.day_id,
+            day=day,
             item_type="quiz"
         )
-
         quiz_progress.completed = True
         quiz_progress.completed_at = timezone.now()
         quiz_progress.save()
 
-        # Recalculate points
-        points = QuizAnswer.objects.filter(
-            user_id=user,
-            daily_quiz_id__days_id=current_dp.day_id,
-            points=1
-        ).count()
-
         return Response({
             "message": "Quiz submitted successfully",
-            "points_added": points
+            "points_added": result["points"]
         }, status=200)
-
-

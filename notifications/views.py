@@ -69,15 +69,25 @@ class NotificationListView(APIView):
 
         qs = Notification.objects.filter(user=user)
 
+        unread_qs = qs.filter(is_read=False)
+
         return Response({
             "today": NotificationSerializer(
                 qs.filter(created_at__date=today),
                 many=True
             ).data,
 
+      
             "yesterday": NotificationSerializer(
                 qs.filter(created_at__date=yesterday),
                 many=True
             ).data,
-            "unread_message": qs.filter(is_read=False).count(),
+
+            "all_unread": NotificationSerializer(
+                unread_qs.order_by("-created_at"),
+                many=True
+            ).data,
+
+       
+            "unread_message": unread_qs.count(),
         })

@@ -21,6 +21,7 @@ from userprogress.models import UserDayProgress
 from .models import Notification
 
 def morning_journey_status():
+    print("faslf;")
     
 
     today = timezone.localdate()

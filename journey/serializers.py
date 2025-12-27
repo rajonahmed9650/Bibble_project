@@ -32,19 +32,23 @@ class JourneyIconSerializer(serializers.ModelSerializer):
 
 
 class DaysSerializer(serializers.ModelSerializer):
-    image = serializers.SerializerMethodField()
+    image_url = serializers.SerializerMethodField()
 
     class Meta:
         model = Days
-        fields = ["id", "journey_id", "name", "image","order"]
+        fields = ["id", "journey_id", "name", "order", "image", "image_url"]
+        extra_kwargs = {
+            "image": {"write_only": True}  # upload only
+        }
 
-    def get_image(self, obj):
+    def get_image_url(self, obj):
         request = self.context.get("request")
-
         if obj.image:
-            return request.build_absolute_uri(obj.image.url)
-
+            if request:
+                return request.build_absolute_uri(obj.image.url)
+            return obj.image.url
         return None
+
 
 
 

@@ -93,7 +93,7 @@ class CreateCheckoutSession(APIView):
                 "package_id": pkg.id,
                 "plan": plan
             },
-            success_url="http://localhost:8000/success/",
+            success_url="biblejourney://payment-success",
             cancel_url="http://localhost:8000/cancel/",
         )
 

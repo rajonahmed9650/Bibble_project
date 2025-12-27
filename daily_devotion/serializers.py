@@ -56,5 +56,16 @@ class DailyPrayerSerializer(serializers.ModelSerializer):
 class MicroActionSerializer(serializers.ModelSerializer):
     class Meta:
         model = MicroAction
-        fields = ["id","journey_id","day_id","action"]
+        fields = ["id", "journey_id", "day_id", "action"]
+
+    def validate(self, data):
+        journey = data["journey_id"]
+        day = data["day_id"]
+
+        if day.journey_id_id != journey.id:
+            raise serializers.ValidationError(
+                "This day does not belong to the given journey."
+            )
+        return data
+
 
