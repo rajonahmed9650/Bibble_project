@@ -169,20 +169,17 @@ USE_TZ = True
 
 STATIC_URL = "/static/"
 
+# Production এ collectstatic এখানে জমা হবে
+STATIC_ROOT = BASE_DIR / "staticfiles"
+
+# Development এ যেখান থেকে static পড়বে
 STATICFILES_DIRS = [
-    BASE_DIR / "static"
+    BASE_DIR / "static",
 ]
-
-STATIC_ROOT = BASE_DIR / "staticfiles"   # production
-
-STATIC_URL = '/static/'
 
 MEDIA_URL = "/media/"
 MEDIA_ROOT = BASE_DIR / "media"
-STATIC_ROOT = BASE_DIR / 'staticfiles'
-STATICFILES_DIRS = [
-    BASE_DIR / "staticfiles"
-]
+
 
 # Default primary key field type
 # https://docs.djangoproject.com/en/5.2/ref/settings/#default-auto-field
