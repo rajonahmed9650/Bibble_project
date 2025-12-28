@@ -13,16 +13,16 @@ class Migration(migrations.Migration):
         migrations.AlterField(
             model_name='dailydevotion',
             name='devotion',
-            field=models.TextField(),
+            field=models.TextField(max_length=255),
         ),
         migrations.AlterField(
             model_name='dailydevotion',
             name='name',
-            field=models.CharField(),
+            field=models.CharField(max_length=255),
         ),
         migrations.AlterField(
             model_name='dailydevotion',
             name='reflection',
-            field=models.CharField(),
+            field=models.CharField(max_length=255),
         ),
     ]

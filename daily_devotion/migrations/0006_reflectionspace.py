@@ -8,7 +8,7 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('daily_devotion', '0005_alter_microaction_action'),
+        ('daily_devotion', '0004_alter_dailydevotion_reflection'),
         migrations.swappable_dependency(settings.AUTH_USER_MODEL),
     ]
 
