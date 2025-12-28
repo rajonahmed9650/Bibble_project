@@ -245,53 +245,79 @@ class UserJourneySequenceView(APIView):
     def get(self, request):
         user = request.user
 
+        # -----------------------------
+        # 1️⃣ Category validation
+        # -----------------------------
         if not user.category:
             return Response(
                 {"error": "User category not assigned"},
                 status=400
             )
 
-        persona = PersonaJourney.objects.get(persona=user.category)
-        sequence = persona.sequence
-
-# ENSURE FIRST JOURNEY IS UNLOCKED FOR NEW USER
-        current_progress = UserJourneyProgress.objects.filter(
-            user=user,
-            status="current"
+        persona = PersonaJourney.objects.filter(
+            persona=user.category
         ).first()
 
-        if not current_progress:
-            UserJourneyProgress.objects.get_or_create(
-                user=user,
-                journey_id=sequence[0],
-                defaults={"status": "current"}
+        if not persona or not persona.sequence:
+            return Response(
+                {"error": "Journey sequence not configured"},
+                status=400
             )
 
+        sequence = persona.sequence  # e.g. [1, 6, 8, 7, 9]
 
+        # -----------------------------
+        # 2️⃣ Ensure FIRST journey for new user
+        # -----------------------------
+        has_any_progress = UserJourneyProgress.objects.filter(
+            user=user
+        ).exists()
 
-        journeys = Journey.objects.filter(id__in=sequence)
-        ordered = sorted(journeys, key=lambda j: sequence.index(j.id))
-       
+        if not has_any_progress:
+            UserJourneyProgress.objects.create(
+                user=user,
+                journey_id=sequence[0],
+                status="current",
+                completed=False,
+                completed_days=0
+            )
+
+        # -----------------------------
+        # 3️⃣ Fetch journeys in sequence order
+        # -----------------------------
+        journeys = Journey.objects.filter(
+            id__in=sequence
+        )
+
+        ordered_journeys = sorted(
+            journeys,
+            key=lambda j: sequence.index(j.id)
+        )
+
         serializer = JourneyWithStatusSerializer(
-            ordered,
+            ordered_journeys,
             many=True,
             context={"request": request}
         )
 
         data = serializer.data
 
+        # -----------------------------
+        # 4️⃣ Attach icon + details
+        # -----------------------------
         for j in data:
-            #  JOURNEY ICON (already working)
+            # Journey icon
             icon = Journey_icon.objects.filter(
                 journey_id=j["id"]
             ).first()
 
-            if icon and icon.icon:
-                j["journey_icon"] = request.build_absolute_uri(icon.icon.url)
-            else:
-                j["journey_icon"] = None
+            j["journey_icon"] = (
+                request.build_absolute_uri(icon.icon.url)
+                if icon and icon.icon
+                else None
+            )
 
-            #  JOURNEY DETAILS (same logic as icon)
+            # Journey details
             detail = JourneyDetails.objects.filter(
                 journey_id=j["id"]
             ).first()
@@ -303,16 +329,17 @@ class UserJourneySequenceView(APIView):
                     "details": detail.details
                 }
             else:
-                j["details"] = {}   # no details
+                j["details"] = {}
 
-        current = next(
-            (j for j in data if j["status"] == "current"),
-            None
+        # -----------------------------
+        # 5️⃣ FINAL RESPONSE
+        # -----------------------------
+        return Response(
+            {
+                "category": user.category,
+                "journeys": data
+            },
+            status=200
         )
-
-        return Response({
-            "category": user.category,
-            "journeys": data
-        }, status=200)
 
 
