@@ -19,6 +19,7 @@ from userprogress.models import UserDayItemProgress
 
 # userprogress/views.py
 class TodayStepView(APIView):
+    print(" SERVER RUNNING NEW CODE v2 ")
     permission_classes = [IsAuthenticated, HasActiveSubscription]
 
     ALLOWED_STEPS = ["prayer", "devotion", "action", "quiz"]
