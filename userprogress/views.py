@@ -1,5 +1,4 @@
 
-# progress/views.py
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
@@ -34,6 +33,10 @@ class TodayStepView(APIView):
             return Response({"error": "Invalid step"}, status=400)
 
         day_id = request.query_params.get("day_id")
+        try:
+            day_id = int(day_id)
+        except (TypeError, ValueError):
+            return Response({"error": "Invalid day_id"}, status=400)
 
         # ===============================
         # CASE 1: Completed / Current day (day_id provided)
