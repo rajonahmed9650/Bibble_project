@@ -1,7 +1,7 @@
 from notifications.utils import create_notification
-from notifications.helpers import get_current_stage
-from userprogress.models import UserDayProgress, UserDayItemProgress
-
+from django.utils import timezone
+from userprogress.models import UserDayProgress
+from .models import Notification
 STAGE_LABEL = {
     "prayer": "Prayer",
     "devotion": "Devotion",
@@ -13,13 +13,6 @@ STAGE_LABEL = {
 # -------------------------
 # Morning Summary
 # -------------------------
-from userprogress.models import UserDayProgress
-
-from django.utils import timezone
-from notifications.utils import create_notification
-from userprogress.models import UserDayProgress
-from .models import Notification
-
 def morning_journey_status():
     print("faslf;")
     

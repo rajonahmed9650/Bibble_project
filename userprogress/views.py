@@ -19,7 +19,7 @@ from userprogress.models import UserDayItemProgress
 
 # userprogress/views.py
 class TodayStepView(APIView):
-    print(" SERVER RUNNING NEW CODE v2 ")
+    
     permission_classes = [IsAuthenticated, HasActiveSubscription]
 
     ALLOWED_STEPS = ["prayer", "devotion", "action", "quiz"]
@@ -227,11 +227,7 @@ from datetime import timedelta
 from journey.models import Journey, Days, PersonaJourney
 from daily_devotion.models import DailyDevotion, DailyReflectionSpace
 from notifications.utils import create_notification
-from userprogress.models import (
-    UserJourneyProgress,
-    UserDayProgress,
-    UserDayItemProgress
-)
+
 
 
 # progress/views.py
@@ -408,17 +404,6 @@ class CompleteDayView(APIView):
         return Response({"message": "All journeys completed 🎉"}, status=200)
 
 
-
-
-
-from .models import (
-    Days,
-    jourenystepitem,
-    UserDayProgress,
-    UserDayItemProgress
-)
-
-
 # userprogress/views.py
 class CompleteDayItemView(APIView):
     permission_classes = [IsAuthenticated, HasActiveSubscription]
@@ -431,7 +416,7 @@ class CompleteDayItemView(APIView):
         STEP_SEQUENCE = ["prayer", "devotion", "action", "reflection"]
 
         # -------------------------
-        # 1️⃣ Validate input
+        # 1 Validate input
         # -------------------------
         if not item_type or not day_id:
             return Response(
@@ -443,14 +428,14 @@ class CompleteDayItemView(APIView):
             return Response({"error": "Invalid item_type"}, status=400)
 
         # -------------------------
-        # 2️⃣ Validate day
+        # 2Validate day
         # -------------------------
         day = Days.objects.filter(id=day_id).first()
         if not day:
             return Response({"error": "Invalid day"}, status=400)
 
         # -------------------------
-        # 3️⃣ Validate CURRENT day
+        #  Validate CURRENT day
         # -------------------------
         current_dp = UserDayProgress.objects.filter(
             user=user,
@@ -465,7 +450,7 @@ class CompleteDayItemView(APIView):
             )
 
         # =================================================
-        # 🔥 4️⃣ SEQUENCE ENFORCEMENT (MAIN LOGIC)
+        #  SEQUENCE ENFORCEMENT (MAIN LOGIC)
         # =================================================
         step_index = STEP_SEQUENCE.index(item_type)
 
@@ -488,7 +473,7 @@ class CompleteDayItemView(APIView):
                 )
 
         # -------------------------
-        # 5️⃣ Create / Update step progress
+        # 5 Create / Update step progress
         # -------------------------
         obj, created = UserDayItemProgress.objects.get_or_create(
             user=user,

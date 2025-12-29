@@ -8,9 +8,7 @@ from notifications.jobs import morning_journey_status
 
 
 def start():
-    #  Django auto-reload duplicate scheduler prevent
-    if os.environ.get("RUN_MAIN") != "true":
-        return
+
 
     scheduler = BackgroundScheduler(timezone=settings.TIME_ZONE)
     scheduler.add_jobstore(DjangoJobStore(), "default")
