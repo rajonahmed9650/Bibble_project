@@ -25,7 +25,7 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 SECRET_KEY = 'django-insecure-^_ew)$#_y+o_i6cx@_=tqc&2_r=s*z%=du3w@f65eyl@95%=4b'
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = True
+DEBUG = False
 
 ALLOWED_HOSTS = [
     "test3.fireai.agency",
@@ -56,19 +56,8 @@ INSTALLED_APPS = [
     'django_apscheduler' 
 ]
 
-
-
-
 ASGI_APPLICATION = "bibble_project.asgi.application"
 
-CHANNEL_LAYERS = {
-    "default": {
-        "BACKEND": "channels_redis.core.RedisChannelLayer",
-        "CONFIG": {
-            "hosts": [("127.0.0.1", 6379)],
-        },
-    },
-}
 
 
 AUTH_USER_MODEL = "accounts.User"
