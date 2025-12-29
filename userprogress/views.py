@@ -235,7 +235,7 @@ from notifications.utils import create_notification
 class CompleteDayView(APIView):
     permission_classes = [IsAuthenticated, HasActiveSubscription]
 
-    @transaction.atomic
+
     def post(self, request):
         user = request.user
         now = timezone.now()
@@ -254,7 +254,7 @@ class CompleteDayView(APIView):
         # ⏱ testing rule
         if UserDayProgress.objects.filter(
             user=user,
-            completed_at__gte=now - timedelta(minutes=1)
+            completed_at__gte=now - timedelta(minutes=5)
         ).exists():
             return Response({"error": "Wait 5 minutes"}, status=400)
 
@@ -284,7 +284,7 @@ class CompleteDayView(APIView):
         day = current_dp.day_id
 
         # 🔹 step validation
-        REQUIRED = ["prayer", "devotion", "action", "quiz"]
+        REQUIRED = ["prayer", "devotion", "action"]
         completed = UserDayItemProgress.objects.filter(
             user=user,
             day=day,
@@ -298,7 +298,7 @@ class CompleteDayView(APIView):
                 status=400
             )
 
-        # 📝 reflection
+        # reflection
         if reflection_note:
             devotion = DailyDevotion.objects.filter(day_id=day).first()
             if devotion:
