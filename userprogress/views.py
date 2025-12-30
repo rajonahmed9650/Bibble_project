@@ -19,13 +19,13 @@ from userprogress.models import UserDayItemProgress
 
 # userprogress/views.py
 class TodayStepView(APIView):
-    
     permission_classes = [IsAuthenticated, HasActiveSubscription]
 
     ALLOWED_STEPS = ["prayer", "devotion", "action", "quiz"]
 
     def get(self, request, step):
         user = request.user
+   
 
         if not user.category:
             return Response({"error": "User category not assigned"}, status=400)
@@ -34,15 +34,16 @@ class TodayStepView(APIView):
             return Response({"error": "Invalid step"}, status=400)
 
         day_id = request.query_params.get("day_id")
-        try:
-            day_id = int(day_id)
-        except (TypeError, ValueError):
-            return Response({"error": "Invalid day_id"}, status=400)
 
-        # ===============================
-        # CASE 1: Completed / Current day (day_id provided)
-        # ===============================
+        # ----------------------------------
+        # CASE 1️⃣ day_id provided
+        # ----------------------------------
         if day_id:
+            try:
+                day_id = int(day_id)
+            except ValueError:
+                return Response({"error": "Invalid day_id"}, status=400)
+
             try:
                 day = Days.objects.select_related("journey_id").get(id=day_id)
             except Days.DoesNotExist:
@@ -63,15 +64,14 @@ class TodayStepView(APIView):
                 journey=journey
             ).first()
 
-        # ===============================
-        # CASE 2: Current day (default)
-        # ===============================
+        # ----------------------------------
+        # CASE 2️⃣ No day_id → current day
+        # ----------------------------------
         else:
             journey_progress = UserJourneyProgress.objects.filter(
                 user=user,
                 status="current"
             ).select_related("journey").first()
-                            
 
             if not journey_progress:
                 return Response(
@@ -92,18 +92,18 @@ class TodayStepView(APIView):
 
             day = current_dp.day_id
 
-        # ===============================
+        # ----------------------------------
         # STEP PROGRESS
-        # ===============================
+        # ----------------------------------
         step_progress = UserDayItemProgress.objects.filter(
             user=user,
             day=day,
             item_type=step
         ).first()
 
-        # ===============================
+        # ----------------------------------
         # CONTENT
-        # ===============================
+        # ----------------------------------
         if step == "prayer":
             obj = DailyPrayer.objects.filter(day_id=day).first()
             data = DailyPrayerSerializer(obj, context={"request": request}).data if obj else None
@@ -112,17 +112,15 @@ class TodayStepView(APIView):
             obj = DailyDevotion.objects.filter(day_id=day).first()
             data = DailyDevotionSerializer(obj, context={"request": request}).data if obj else None
 
+
         elif step == "action":
-            obj = MicroAction.objects.filter(day_id=day,journey_id=journey).first()
+            obj = MicroAction.objects.filter(day_id=day, journey_id=journey).first()
             data = MicroActionSerializer(obj, context={"request": request}).data if obj else None
 
         elif step == "quiz":
             quizzes = DailyQuiz.objects.filter(days_id=day)
             data = DailyQuizReadSerializer(quizzes, many=True).data
 
-        # ===============================
-        # RESPONSE (UNCHANGED)
-        # ===============================
         return Response({
             "journey": {
                 "id": journey.id,
@@ -135,8 +133,10 @@ class TodayStepView(APIView):
                 "title": day.name,
                 "status": current_dp.status
             },
+            "step": step,
             "is_completed": step_progress.completed if step_progress else False,
-            "data": data
+            "data": data,
+
         })
 
 
@@ -254,9 +254,9 @@ class CompleteDayView(APIView):
         # ⏱ testing rule
         if UserDayProgress.objects.filter(
             user=user,
-            completed_at__gte=now - timedelta(minutes=5)
+            completed_at__gte=now - timedelta(minutes=1440)
         ).exists():
-            return Response({"error": "Wait 5 minutes"}, status=400)
+            return Response({"error": "Wait 1 days"}, status=400)
 
         # 🔹 current journey
         journey_progress = UserJourneyProgress.objects.filter(
@@ -554,9 +554,7 @@ class allstepviews(APIView):
             "day_title": day.name,
             "steps": data
         })
-
-
-
+    
     def post(self, request, journey_id, day_id):
         data = request.data.copy()
         data["journey_id"] = journey_id

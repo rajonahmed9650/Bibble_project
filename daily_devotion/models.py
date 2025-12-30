@@ -21,7 +21,7 @@ from django.contrib.auth import get_user_model
 User = get_user_model()
 
 class DailyReflectionSpace(models.Model):
-    user = models.ForeignKey(User, on_delete=models.CASCADE)  # NEW ✔️
+    user = models.ForeignKey(User, on_delete=models.CASCADE)  
 
     dailydevotion_id = models.ForeignKey(DailyDevotion, on_delete=models.CASCADE)
     reflection_note = models.TextField(blank=True, null=True)

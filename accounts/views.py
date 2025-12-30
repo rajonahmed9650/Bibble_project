@@ -56,7 +56,7 @@ class SignupView(APIView):
             user=user,
             package=Package.objects.filter(package_name="free").first(),
             current_plan="free",
-            expired_at=timezone.now() + timedelta(minutes=60),
+            expired_at=timezone.now() + timedelta(hours=168),
             is_active=True
         )
 
