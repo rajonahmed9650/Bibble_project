@@ -1,5 +1,5 @@
 from django.contrib import admin
-from .models import Subscription,Package
+from .models import Subscription,Package,SubscriptionInvoice
 # Register your models here.
 admin.site.register(Subscription)
 
@@ -10,3 +10,5 @@ class PackageAdmin(admin.ModelAdmin):
 
 
 admin.site.register(Package,PackageAdmin)
+admin.site.register(SubscriptionInvoice)
+

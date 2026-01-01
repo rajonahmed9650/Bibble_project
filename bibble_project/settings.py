@@ -25,12 +25,15 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 SECRET_KEY = 'django-insecure-^_ew)$#_y+o_i6cx@_=tqc&2_r=s*z%=du3w@f65eyl@95%=4b'
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = False
+DEBUG = True
 
 ALLOWED_HOSTS = [
-    "test3.fireai.agency",
-    "127.0.0.1",
+    # "test3.fireai.agency",
+    # "127.0.0.1",
+    # "localhost",
     "localhost",
+    "127.0.0.1",
+    "thymiest-layton-doctrinally.ngrok-free.dev",
 ]
 
 

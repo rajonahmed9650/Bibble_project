@@ -55,39 +55,23 @@ class ClearAllNotificationsView(APIView):
 
 # notifications/views.py
 
-from django.utils import timezone
-from datetime import timedelta
-
 
 class NotificationListView(APIView):
     permission_classes = [IsAuthenticated]
 
     def get(self, request):
         user = request.user
-        today = timezone.localdate()
-        yesterday = today - timedelta(days=1)
 
-        qs = Notification.objects.filter(user=user)
+        notifications = (
+            Notification.objects
+            .filter(user=user)
+            .order_by("-created_at")
+        )
 
-        unread_qs = qs.filter(is_read=False)
+        unread_count = notifications.filter(is_read=False).count()
 
         return Response({
-            "today": NotificationSerializer(
-                qs.filter(created_at__date=today),
-                many=True
-            ).data,
 
-      
-            "yesterday": NotificationSerializer(
-                qs.filter(created_at__date=yesterday),
-                many=True
-            ).data,
-
-            "all_unread": NotificationSerializer(
-                unread_qs.order_by("-created_at"),
-                many=True
-            ).data,
-
-       
-            "unread_message": unread_qs.count(),
+            "notifications": NotificationSerializer(notifications,many=True).data,
+            "unread_message": unread_count,
         })
