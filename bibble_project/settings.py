@@ -238,6 +238,7 @@ CORS_ALLOW_CREDENTIALS = True
 
 CSRF_TRUSTED_ORIGINS = [
     "https://test3.fireai.agency",
+    "http://23.26.207.33:8000",
 ]
 
 

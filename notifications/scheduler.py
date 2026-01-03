@@ -16,7 +16,7 @@ def start():
 
     scheduler.add_job(
         morning_journey_status,
-        trigger=CronTrigger(minute="*/2"),  
+        trigger=CronTrigger(minute="*/720"),  
         id="morning_journey_status",
         replace_existing=True,
     )
