@@ -14,7 +14,7 @@ STAGE_LABEL = {
 # Morning Summary
 # -------------------------
 def morning_journey_status():
-    print("triggering;")
+    
     
 
     today = timezone.localdate()

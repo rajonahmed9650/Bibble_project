@@ -143,7 +143,7 @@ class StripeWebhook(APIView):
         # ====================================
         # INVOICE PAID
         # ====================================
-        if event_type in ["invoice.payment_succeeded"]:
+        if event_type == "invoice.payment_succeeded":
             invoice_id = data.get("id")
             payment_intent = data.get("payment_intent")
 
@@ -291,11 +291,6 @@ class CurrentPlanView(APIView):
 
 
 
-
-from rest_framework.views import APIView
-from rest_framework.permissions import IsAuthenticated
-from django.shortcuts import get_object_or_404
-from payments.models import SubscriptionInvoice
 from payments.utils import generate_invoice_pdf
 
 
