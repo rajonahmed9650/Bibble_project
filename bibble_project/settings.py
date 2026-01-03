@@ -33,7 +33,8 @@ ALLOWED_HOSTS = [
     # "localhost",
     "localhost",
     "127.0.0.1",
-    "thymiest-layton-doctrinally.ngrok-free.dev",
+    "23.26.207.33",
+
 ]
 
 
