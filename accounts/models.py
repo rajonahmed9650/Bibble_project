@@ -40,30 +40,29 @@ class User(AbstractUser):
 
     objects = UserManager()
 
-    def save(self, *args, **kwargs):
-        if not self.username and self.full_name:
-            base_username = self.full_name.lower().replace(" ", "_")
-            new_username = base_username
-            counter = 1
+    # def save(self, *args, **kwargs):
+    #     if not self.username and self.full_name:
+    #         base_username = self.full_name.lower().replace(" ", "_")
+    #         new_username = base_username
+    #         counter = 1
 
-        # Ensure unique username
-            while User.objects.filter(username=new_username).exists():
-                new_username = f"{base_username}_{counter}"
-                counter += 1
+    #     # Ensure unique username
+    #         while User.objects.filter(username=new_username).exists():
+    #             new_username = f"{base_username}_{counter}"
+    #             counter += 1
 
-            self.username = new_username
+    #         self.username = new_username
 
-        super().save(*args, **kwargs)
+    #     super().save(*args, **kwargs)
 
 
     def __str__(self):
-        return f"{self.email}-{self.id}"
+         return f"{self.email}-{self.id}"
 
 
 
 class Profile(models.Model):
     user = models.OneToOneField(User,on_delete=models.CASCADE, related_name="profile")
-
     name = models.CharField(max_length=200, blank=True, null=True)
     email = models.EmailField(blank=True, null=True)
     phone = models.CharField(max_length=20, blank=True, null=True)

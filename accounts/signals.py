@@ -6,21 +6,12 @@ from .models import Profile
 User = get_user_model()
 
 @receiver(post_save, sender=User)
-def create_or_update_profile(sender, instance, created, **kwargs):
+def create_profile_on_signup(sender, instance, created, **kwargs):
     if created:
-        # new user -> create profile
-        profile = Profile.objects.create(
+        Profile.objects.create(
             user=instance,
-            name=instance.username,
-            email=instance.email
+            
+            name=instance.username or instance.full_name,
+            email=instance.email,
+            phone=getattr(instance, "phone", None),
         )
-
-        if hasattr(instance, "phone"):
-            profile.phone = instance.phone
-
-        profile.save()
-
-    else:
-        # update profile safely (only if exists)
-        if hasattr(instance, "profile"):
-            instance.profile.save()

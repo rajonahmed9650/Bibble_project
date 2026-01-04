@@ -43,7 +43,7 @@ class SignupView(APIView):
         )
      
 
-        # ✅ CREATE SOCIAL LOGIN ENTRY (IMPORTANT!)
+        #  CREATE SOCIAL LOGIN ENTRY (IMPORTANT!)
         Social_login.objects.create(
             user=user,
             provider="email",

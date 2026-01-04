@@ -3,7 +3,7 @@ from .models import User,Profile,Social_login,Sessions
 # Register your models here.
 
 class UserAdmin(admin.ModelAdmin):
-    list_display = ('id', 'username', 'email', 'phone',)
+    list_display = ('id', 'email', 'phone',)
     ordering = ('id',)
 admin.site.register(User, UserAdmin)
 
