@@ -41,3 +41,15 @@ class SubscriptionSerializer(serializers.ModelSerializer):
             "created_at",
             "invoices",  
         ]
+
+
+
+
+
+# subscriptions/serializers.py
+
+
+class IAPVerifySerializer(serializers.Serializer):
+    platform = serializers.ChoiceField(choices=["ios", "android"])
+    product_id = serializers.CharField()
+    token = serializers.CharField()

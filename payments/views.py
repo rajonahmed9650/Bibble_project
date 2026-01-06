@@ -305,3 +305,9 @@ class InvoicePDFView(APIView):
         )
 
         return generate_invoice_pdf(invoice)
+
+
+
+
+
+
