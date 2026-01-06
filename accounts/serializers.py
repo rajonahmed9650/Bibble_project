@@ -3,6 +3,7 @@ from .models import User,Profile
 class SignupSerializer(serializers.ModelSerializer):
     password = serializers.CharField(write_only=True)
     confirm_password = serializers.CharField(write_only=True)
+    phone = serializers.CharField(required=False,allow_blank=True,allow_null=True)
 
     class Meta:
         model = User
@@ -19,13 +20,22 @@ class SignupSerializer(serializers.ModelSerializer):
         return value
 
     def validate_phone(self, value):
+        if not value:
+            return value
+
         if User.objects.filter(phone=value).exists():
             raise serializers.ValidationError("Phone already exists")
+
         return value
+    
 
     def validate(self, attrs):
         if attrs["password"] != attrs["confirm_password"]:
             raise serializers.ValidationError({"password": "Passwords do not match"})
+     
+        if attrs.get("phone") == "":
+            attrs["phone"] = None
+
         return attrs
 
 

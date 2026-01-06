@@ -453,7 +453,7 @@ class CategorizeView(APIView):
 
         # 🔹 External categorization
         response = requests.post(
-            "http://206.162.244.131:8001/api/categorize/",
+            "http://23.26.207.33:8001/api/categorize/",
             json={"qa_pairs": qa_pairs},
             timeout=10
         )

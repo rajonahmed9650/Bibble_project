@@ -10,9 +10,6 @@ class UserManager(BaseUserManager):
     def create_user(self, email, phone, password=None, **extra_fields):
         if not email:
             raise ValueError("Email is required")
-        if not phone:
-            raise ValueError("Phone is required")
-
         email = self.normalize_email(email)
         user = self.model(email=email, phone=phone, **extra_fields)
         user.set_password(password)
@@ -28,7 +25,7 @@ class UserManager(BaseUserManager):
 class User(AbstractUser):
     username = models.CharField(max_length=150, unique=True, blank=True, null=True)
     email = models.EmailField(unique=True)
-    phone = models.CharField(max_length=20, unique=True)
+    phone = models.CharField(max_length=20, unique=True,null=True,blank=True)
     full_name = models.CharField(max_length=255, blank=True, null=True)
     category = models.CharField(max_length=255,blank=True,null=True)
     last_category = models.CharField(max_length=50, null=True, blank=True)
