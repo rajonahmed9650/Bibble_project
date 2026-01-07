@@ -11,12 +11,23 @@ from .serializers import*
 from django.db.models import Q
 from accounts.authentication import CustomJWTAuthentication
 from rest_framework.permissions import IsAuthenticated,AllowAny
-
+from django.core.cache import cache
 from google.auth.transport import requests as google_requests
 from google.oauth2 import id_token as google_id_token
 import jwt as pyjwt
 
-from .utils.utils import generate_otp_code ,save_session,create_jwt_token_for_user,save_otp_cache,delete_otp_cache,get_otp_cache,send_otp_code
+from .utils.utils import (
+    generate_otp_code ,
+    save_session,
+    create_jwt_token_for_user,
+    send_otp_code,
+    save_otp,
+    get_otp,
+    increase_otp_attempt,
+    delete_otp,
+    is_reset_allowed,
+    clear_reset_allowed,
+)
 from django.views.decorators.csrf import csrf_exempt
 from django.utils.decorators import method_decorator
 
@@ -95,34 +106,38 @@ class ProfileView(APIView):
         serializer.save()
         return Response(serializer.data)
 
-class OTPVerifiyView(APIView):
+
+from .models import User, Social_login, Sessions
+
+
+class OTPVerifyView(APIView):
     def post(self, request):
         ser = OTPVerifySerializer(data=request.data)
         ser.is_valid(raise_exception=True)
-        data = ser.validated_data
 
-        email = data["email"]
-        otp_input = data["otp"]
+        email = ser.validated_data["email"]
+        otp_input = ser.validated_data["otp"]
 
-        saved_otp = get_otp_cache(email + "_otp")
-        otp_type = get_otp_cache(email + "_type")
+        otp_data = get_otp(email)
 
-        if not saved_otp:
-
+        if not otp_data:
             return Response({"error": "OTP expired"}, status=400)
 
-        if saved_otp != otp_input:
+        # brute force protection
+        attempts = increase_otp_attempt(email)
+        if attempts > 5:
+            delete_otp(email)
+            return Response({"error": "Too many attempts"}, status=429)
 
+        if otp_data["otp"] != otp_input:
             return Response({"error": "Invalid OTP"}, status=400)
 
+        otp_type = otp_data["type"]
+        delete_otp(email)
 
-        # REMOVE OTP
-        delete_otp_cache(email + "_otp")
-        delete_otp_cache(email + "_type")
-
-        # 1) REGISTER FLOW
+        # ================= REGISTER =================
         if otp_type == "register":
-            temp_data = get_otp_cache(email + "_signup")
+            temp_data = cache.get(f"signup_{email}")
             if not temp_data:
                 return Response({"error": "Signup session expired"}, status=400)
 
@@ -130,55 +145,47 @@ class OTPVerifiyView(APIView):
                 username=temp_data["username"],
                 email=temp_data["email"],
                 phone=temp_data["phone"],
-                password=temp_data["password"]
+                password=temp_data["password"],
             )
 
             Social_login.objects.create(
                 user=user,
                 provider="email",
                 provider_id=email,
-                password=make_password(temp_data["password"])
+                password=make_password(temp_data["password"]),
             )
 
-            delete_otp_cache(email + "_signup")
-
             token, expire = create_jwt_token_for_user(user.id)
-            save_session(user, token, expire)
-
-            return Response({
-                "message": "User verified successfully",
-                "verify_status": "verified",
-                "user": {
-                    "id": user.id,
-                    "username": user.username,
-                    "email": user.email,
-                    "phone": user.phone
-                }
-            })
-
-     
-        if otp_type == "forgot_password":
-
-           
-            save_otp_cache(email + "_reset_allowed", True)
- 
+            Sessions.objects.create(user=user, token=token, expire_at=expire)
 
             return Response({
                 "status": "verified",
-                "message": "You can reset your password now.",
+                "token": token,
+                "user": {
+                    "id": user.id,
+                    "email": user.email,
+                }
+            })
+
+        # ================= FORGOT PASSWORD =================
+        if otp_type == "forgot_password":
+            cache.set(f"reset_allowed_{email}", True, timeout=300)
+            return Response({
+                "status": "verified",
                 "action": "reset_password"
             })
 
-        
+        # ================= LOGIN OTP =================
         if otp_type == "login_otp":
             user = User.objects.filter(email=email).first()
             token, expire = create_jwt_token_for_user(user.id)
-            save_session(user, token, expire)
+            Sessions.objects.create(user=user, token=token, expire_at=expire)
+            return Response({
+                "status": "login_success",
+                "token": token
+            })
 
-            return Response({"status": "login_success", "token": token})
-
-        return Response({"error": "Invalid flow"}, status=400)
-
+        return Response({"error": "Invalid OTP flow"}, status=400)
 
 class LoginView(APIView):
     permission_classes = [AllowAny]
@@ -308,41 +315,40 @@ class ResetPasswordView(APIView):
     def post(self, request):
         ser = ResetPasswordSerializer(data=request.data)
         ser.is_valid(raise_exception=True)
-        data = ser.validated_data
 
-        email = data["email"]
-        new_password = data["new_password"]
+        email = ser.validated_data["email"]
+        new_password = ser.validated_data["new_password"]
 
-        user = User.objects.filter(email=email).first()
+        user = User.objects.filter(email__iexact=email).first()
         if not user:
             return Response({"error": "User not found"}, status=400)
 
-        # Check if OTP verify happened
-        allowed = get_otp_cache(email + "_reset_allowed")
-        if not allowed:
+        # ✅ correct reset permission check
+        if not is_reset_allowed(email):
             return Response({"error": "OTP not verified"}, status=400)
 
-        social = Social_login.objects.filter(user=user, provider="email").first()
+        social = Social_login.objects.filter(
+            user=user,
+            provider="email"
+        ).first()
+
         if not social:
             return Response({"error": "Not an email account"}, status=400)
 
         social.password = make_password(new_password)
         social.save()
 
-        delete_otp_cache(email + "_reset_allowed")
-
-
-
+        # ✅ cleanup
+        clear_reset_allowed(email)
 
         return Response({
-            "message": "Password reset successfully."
+            "message": "Password reset successfully"
         })
-  
+
 from rest_framework.permissions import AllowAny
 from rest_framework.authentication import BaseAuthentication
 
 class ForgotPasswordView(APIView):
-     # disable JWT + Basic + Session
     permission_classes = [AllowAny]
     authentication_classes = []
 
@@ -357,10 +363,7 @@ class ForgotPasswordView(APIView):
             return Response({"error": "User not found"}, status=400)
 
         otp = generate_otp_code()
-
-        save_otp_cache(email + "_otp", otp)
-        save_otp_cache(email + "_type", "forgot_password")
-
+        save_otp(email, otp, "forgot_password")
         send_otp_code(email, otp)
 
         return Response({
