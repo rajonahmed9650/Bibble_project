@@ -62,6 +62,21 @@ INSTALLED_APPS = [
 
 ASGI_APPLICATION = "bibble_project.asgi.application"
 
+# =========================
+# CACHE CONFIGURATION (REDIS)
+# =========================
+CACHES = {
+    "default": {
+        "BACKEND": "django_redis.cache.RedisCache",
+        "LOCATION": "redis://127.0.0.1:6379/1",
+        "OPTIONS": {
+            "CLIENT_CLASS": "django_redis.client.DefaultClient",
+        },
+        "KEY_PREFIX": "bibble_project",
+    }
+}
+
+
 
 
 AUTH_USER_MODEL = "accounts.User"
@@ -159,6 +174,8 @@ TIME_ZONE = 'UTC'
 USE_I18N = True
 
 USE_TZ = True
+
+
 
 
 # Static files (CSS, JavaScript, Images)

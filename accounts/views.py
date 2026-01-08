@@ -22,11 +22,10 @@ from .utils.utils import (
     create_jwt_token_for_user,
     send_otp_code,
     save_otp,
-    get_otp,
-    increase_otp_attempt,
     delete_otp,
     is_reset_allowed,
     clear_reset_allowed,
+    verify_otp,
 )
 from django.views.decorators.csrf import csrf_exempt
 from django.utils.decorators import method_decorator
@@ -111,81 +110,26 @@ from .models import User, Social_login, Sessions
 
 
 class OTPVerifyView(APIView):
+    permission_classes = [AllowAny]
+    authentication_classes = []
+
     def post(self, request):
         ser = OTPVerifySerializer(data=request.data)
         ser.is_valid(raise_exception=True)
 
         email = ser.validated_data["email"]
-        otp_input = ser.validated_data["otp"]
+        otp = ser.validated_data["otp"]
 
-        otp_data = get_otp(email)
+        success, message = verify_otp(email, otp, "forgot_password")
 
-        if not otp_data:
-            return Response({"error": "OTP expired"}, status=400)
+        if not success:
+            return Response({"error": message}, status=400)
 
-        # brute force protection
-        attempts = increase_otp_attempt(email)
-        if attempts > 5:
-            delete_otp(email)
-            return Response({"error": "Too many attempts"}, status=429)
-
-        if otp_data["otp"] != otp_input:
-            return Response({"error": "Invalid OTP"}, status=400)
-
-        otp_type = otp_data["type"]
-        delete_otp(email)
-
-        # ================= REGISTER =================
-        if otp_type == "register":
-            temp_data = cache.get(f"signup_{email}")
-            if not temp_data:
-                return Response({"error": "Signup session expired"}, status=400)
-
-            user = User.objects.create_user(
-                username=temp_data["username"],
-                email=temp_data["email"],
-                phone=temp_data["phone"],
-                password=temp_data["password"],
-            )
-
-            Social_login.objects.create(
-                user=user,
-                provider="email",
-                provider_id=email,
-                password=make_password(temp_data["password"]),
-            )
-
-            token, expire = create_jwt_token_for_user(user.id)
-            Sessions.objects.create(user=user, token=token, expire_at=expire)
-
-            return Response({
-                "status": "verified",
-                "token": token,
-                "user": {
-                    "id": user.id,
-                    "email": user.email,
-                }
+        return Response({
+            "message": "OTP verified successfully",
+            "next_step":"You can now reset your password.",
+            "email":email
             })
-
-        # ================= FORGOT PASSWORD =================
-        if otp_type == "forgot_password":
-            cache.set(f"reset_allowed_{email}", True, timeout=300)
-            return Response({
-                "status": "verified",
-                "action": "reset_password"
-            })
-
-        # ================= LOGIN OTP =================
-        if otp_type == "login_otp":
-            user = User.objects.filter(email=email).first()
-            token, expire = create_jwt_token_for_user(user.id)
-            Sessions.objects.create(user=user, token=token, expire_at=expire)
-            return Response({
-                "status": "login_success",
-                "token": token
-            })
-
-        return Response({"error": "Invalid OTP flow"}, status=400)
 
 class LoginView(APIView):
     permission_classes = [AllowAny]
@@ -312,6 +256,9 @@ class LoginView(APIView):
         return Response({"error": "Invalid request"}, status=400)
 
 class ResetPasswordView(APIView):
+    permission_classes = [AllowAny]
+    authentication_classes = []
+
     def post(self, request):
         ser = ResetPasswordSerializer(data=request.data)
         ser.is_valid(raise_exception=True)
@@ -319,13 +266,12 @@ class ResetPasswordView(APIView):
         email = ser.validated_data["email"]
         new_password = ser.validated_data["new_password"]
 
+        if not is_reset_allowed(email):
+            return Response({"error": "OTP not verified"}, status=400)
+
         user = User.objects.filter(email__iexact=email).first()
         if not user:
             return Response({"error": "User not found"}, status=400)
-
-        # ✅ correct reset permission check
-        if not is_reset_allowed(email):
-            return Response({"error": "OTP not verified"}, status=400)
 
         social = Social_login.objects.filter(
             user=user,
@@ -338,15 +284,12 @@ class ResetPasswordView(APIView):
         social.password = make_password(new_password)
         social.save()
 
-        # ✅ cleanup
         clear_reset_allowed(email)
 
         return Response({
-            "message": "Password reset successfully"
+            "status": "success",
+            "message": "Your password has been reset successfully. You can now log in with your new password."
         })
-
-from rest_framework.permissions import AllowAny
-from rest_framework.authentication import BaseAuthentication
 
 class ForgotPasswordView(APIView):
     permission_classes = [AllowAny]
@@ -366,10 +309,8 @@ class ForgotPasswordView(APIView):
         save_otp(email, otp, "forgot_password")
         send_otp_code(email, otp)
 
-        return Response({
-            "status": "otp_sent",
-            "email": email
-        })
+        return Response({"message": "OTP sent","email":email})
+
 
 
 
