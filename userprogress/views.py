@@ -2,8 +2,6 @@
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
-
-from payments.permissions import HasActiveSubscription
 from journey.models import PersonaJourney, Days,JourneyDetails
 from userprogress.models import UserJourneyProgress, UserDayProgress
 
@@ -19,7 +17,7 @@ from userprogress.models import UserDayItemProgress
 
 # userprogress/views.py
 class TodayStepView(APIView):
-    permission_classes = [IsAuthenticated, HasActiveSubscription]
+    permission_classes = [IsAuthenticated]
 
     ALLOWED_STEPS = ["prayer", "devotion", "action", "quiz"]
 
@@ -139,10 +137,10 @@ class TodayStepView(APIView):
 
         })
 
-
+from .utils import get_current_day
 
 class UserProgressDaysView(APIView):
-    permission_classes = [IsAuthenticated, HasActiveSubscription]
+    permission_classes = [IsAuthenticated]
 
     def get(self, request, journey_id):
         user = request.user
@@ -154,6 +152,7 @@ class UserProgressDaysView(APIView):
             )
 
         journey = Journey.objects.get(id=journey_id)
+        get_current_day(user, journey)
         journey_details = JourneyDetails.objects.filter(
             journey_id=journey_id
         ).first()
@@ -233,7 +232,7 @@ from notifications.utils import create_notification
 # progress/views.py
 
 class CompleteDayView(APIView):
-    permission_classes = [IsAuthenticated, HasActiveSubscription]
+    permission_classes = [IsAuthenticated]
 
 
     def post(self, request):
@@ -254,7 +253,7 @@ class CompleteDayView(APIView):
         # ⏱ testing rule
         if UserDayProgress.objects.filter(
             user=user,
-            completed_at__gte=now - timedelta(minutes=1440)
+            completed_at__gte=now - timedelta(days=1)
         ).exists():
             return Response({"error": "Wait 1 days"}, status=400)
 
@@ -340,7 +339,8 @@ class CompleteDayView(APIView):
             UserDayProgress.objects.update_or_create(
                 user=user,
                 day_id=next_day,
-                defaults={"status": "current", "completed_at": None}
+                defaults={"status": "locked"}
+
             )
             return Response({
                 "message": "Day completed 🎉 Next day is current",
@@ -406,7 +406,7 @@ class CompleteDayView(APIView):
 
 # userprogress/views.py
 class CompleteDayItemView(APIView):
-    permission_classes = [IsAuthenticated, HasActiveSubscription]
+    permission_classes = [IsAuthenticated]
 
     def post(self, request):
         user = request.user
@@ -510,7 +510,7 @@ from django.shortcuts import get_object_or_404
 
 
 class allstepviews(APIView):
-    permission_classes = [IsAuthenticated, HasActiveSubscription]
+    permission_classes = [IsAuthenticated]
 
     def get(self, request, journey_id, day_id):
         user = request.user
