@@ -2,13 +2,13 @@ from django.shortcuts import render
 from rest_framework.response import Response
 from rest_framework.views import APIView
 from rest_framework.permissions import IsAuthenticated
-from payments.permissions import HasActiveSubscription
+# from payments.permissions import HasActiveSubscription
 from rest_framework import status
 from rest_framework.parsers import MultiPartParser, FormParser
 
 from .models import Journey,JourneyDetails,Journey_icon,Days
 from .serializers import JourneySerilzers,JourneyDetailsSerializer,Journey_icon,DaysSerializer,JourneyIconSerializer
-from payments.permissions import HasActiveSubscription
+
 from .serializers import JourneyWithStatusSerializer
 from .models import PersonaJourney
 from userprogress.models import UserJourneyProgress
@@ -18,7 +18,7 @@ from userprogress.models import UserJourneyProgress
 
 
 class JourneyListCreateAPIView(APIView):
-    permission_classes = [IsAuthenticated,HasActiveSubscription]
+    permission_classes = [IsAuthenticated]
     def get(self, request):
         journeys = Journey.objects.all()
         serializer = JourneySerilzers(journeys, many=True, context={"request": request})
@@ -240,13 +240,13 @@ class JourneyIconAPiView(APIView):
 
 
 class UserJourneySequenceView(APIView):
-    permission_classes = [IsAuthenticated, HasActiveSubscription]
+    permission_classes = [IsAuthenticated]
 
     def get(self, request):
         user = request.user
 
         # -----------------------------
-        # 1️⃣ Category validation
+        #  Category validation
         # -----------------------------
         if not user.category:
             return Response(
@@ -267,7 +267,7 @@ class UserJourneySequenceView(APIView):
         sequence = persona.sequence  # e.g. [1, 6, 8, 7, 9]
 
         # -----------------------------
-        # 2️⃣ Ensure FIRST journey for new user
+        #  Ensure FIRST journey for new user
         # -----------------------------
         has_any_progress = UserJourneyProgress.objects.filter(
             user=user
@@ -283,7 +283,7 @@ class UserJourneySequenceView(APIView):
             )
 
         # -----------------------------
-        # 3️⃣ Fetch journeys in sequence order
+        #  Fetch journeys in sequence order
         # -----------------------------
         journeys = Journey.objects.filter(
             id__in=sequence
@@ -303,7 +303,7 @@ class UserJourneySequenceView(APIView):
         data = serializer.data
 
         # -----------------------------
-        # 4️⃣ Attach icon + details
+        #  Attach icon + details
         # -----------------------------
         for j in data:
             # Journey icon
@@ -332,7 +332,7 @@ class UserJourneySequenceView(APIView):
                 j["details"] = {}
 
         # -----------------------------
-        # 5️⃣ FINAL RESPONSE
+        #  FINAL RESPONSE
         # -----------------------------
         return Response(
             {

@@ -12,8 +12,8 @@ from django.db.models import Q
 from accounts.authentication import CustomJWTAuthentication
 from rest_framework.permissions import IsAuthenticated,AllowAny
 from django.core.cache import cache
-from google.auth.transport import requests as google_requests
-from google.oauth2 import id_token as google_id_token
+# from google.auth.transport import requests as google_requests
+# from google.oauth2 import id_token as google_id_token
 import jwt as pyjwt
 
 from .utils.utils import (
@@ -234,11 +234,11 @@ class LoginView(APIView):
             token, expire = create_jwt_token_for_user(user.id)
             save_session(user, token, expire)
 
-            has_active_plan = Subscription.objects.filter(
-                user=user,
-                is_active=True,
-                expired_at__gt=timezone.now()
-            ).exists()
+            # has_active_plan = Subscription.objects.filter(
+            #     user=user,
+            #     is_active=True,
+            #     expired_at__gt=timezone.now()
+            # ).exists()
 
             return Response({
                 "status": "success",
