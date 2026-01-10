@@ -62,13 +62,13 @@ class SignupView(APIView):
         )
 
         # CREATE SUBSCRIPTION (FREE PLAN)
-        subscription = Subscription.objects.create(
-            user=user,
-            package=Package.objects.filter(package_name="free").first(),
-            current_plan="free",
-            expired_at=timezone.now() + timedelta(minutes =10080),
-            is_active=True
-        )
+        # subscription = Subscription.objects.create(
+        #     user=user,
+        #     package=Package.objects.filter(package_name="free").first(),
+        #     current_plan="free",
+        #     expired_at=timezone.now() + timedelta(minutes =10080),
+        #     is_active=True
+        # )
 
         # CREATE TOKEN
         token, expire = create_jwt_token_for_user(user.id)
@@ -78,12 +78,12 @@ class SignupView(APIView):
         return Response({
             "user_id": user.id,
             "message": "Signup completed successfully.",
-            "subscription": {
-                "user_id": subscription.user.id,
-                "plan": subscription.current_plan,
-                "expired_at": subscription.expired_at,
-                "is_active": subscription.is_active
-            },
+            # "subscription": {
+            #     "user_id": subscription.user.id,
+            #     "plan": subscription.current_plan,
+            #     "expired_at": subscription.expired_at,
+            #     "is_active": subscription.is_active
+            # },
             "token": token
         }, status=201)
 
@@ -142,70 +142,70 @@ class LoginView(APIView):
       
         # GOOGLE LOGIN
 
-        if data.get("google_token"):
-            try:
-                idinfo = google_id_token.verify_oauth2_token(
-                    data["google_token"], google_requests.Request()
-                )
-                email = idinfo.get("email")
-                google_uid = idinfo["sub"]
-            except Exception as e:
-                return Response({"error": "Invalid Google token"}, status=400)
+        # if data.get("google_token"):
+        #     try:
+        #         idinfo = google_id_token.verify_oauth2_token(
+        #             data["google_token"], google_requests.Request()
+        #         )
+        #         email = idinfo.get("email")
+        #         google_uid = idinfo["sub"]
+        #     except Exception as e:
+        #         return Response({"error": "Invalid Google token"}, status=400)
 
-            user, created = User.objects.get_or_create(
-                email=email,
-                defaults={"username": email.split("@")[0]}
-            )
+        #     user, created = User.objects.get_or_create(
+        #         email=email,
+        #         defaults={"username": email.split("@")[0]}
+        #     )
 
-            Social_login.objects.update_or_create(
-                user=user,
-                defaults={"provider": "google", "provider_id": google_uid}
-            )
+        #     Social_login.objects.update_or_create(
+        #         user=user,
+        #         defaults={"provider": "google", "provider_id": google_uid}
+        #     )
 
-            token, expire = create_jwt_token_for_user(user.id)
-            save_session(user, token, expire)
+        #     token, expire = create_jwt_token_for_user(user.id)
+        #     save_session(user, token, expire)
 
    
 
-            return Response({
-                "status": "success",
-                "login_by": "google",
-                "token": token,
-                "plan_selection_needed": True,
-                "category": user.category
-            })
+        #     return Response({
+        #         "status": "success",
+        #         "login_by": "google",
+        #         "token": token,
+        #         "plan_selection_needed": True,
+        #         "category": user.category
+        #     })
 
       
         # APPLE LOGIN
     
-        if data.get("apple_token"):
-            try:
-                decoded = pyjwt.decode(data["apple_token"], options={"verify_signature": True})
-                email = decoded.get("email")
-                apple_uid = decoded["sub"]
-            except Exception:
-                return Response({"error": "Invalid Apple token"}, status=400)
+        # if data.get("apple_token"):
+        #     try:
+        #         decoded = pyjwt.decode(data["apple_token"], options={"verify_signature": True})
+        #         email = decoded.get("email")
+        #         apple_uid = decoded["sub"]
+        #     except Exception:
+        #         return Response({"error": "Invalid Apple token"}, status=400)
 
-            user, created = User.objects.get_or_create(
-                email=email,
-                defaults={"username": email.split("@")[0]}
-            )
+        #     user, created = User.objects.get_or_create(
+        #         email=email,
+        #         defaults={"username": email.split("@")[0]}
+        #     )
 
-            Social_login.objects.update_or_create(
-                user=user,
-                defaults={"provider": "apple", "provider_id": apple_uid}
-            )
+        #     Social_login.objects.update_or_create(
+        #         user=user,
+        #         defaults={"provider": "apple", "provider_id": apple_uid}
+        #     )
 
-            token, expire = create_jwt_token_for_user(user.id)
-            save_session(user, token, expire)
+        #     token, expire = create_jwt_token_for_user(user.id)
+        #     save_session(user, token, expire)
 
-            return Response({
-                "status": "success",
-                "login_by": "apple",
-                "token": token,
-                "plan_selection_needed": True,
-                "category": user.category
-            })
+        #     return Response({
+        #         "status": "success",
+        #         "login_by": "apple",
+        #         "token": token,
+        #         "plan_selection_needed": True,
+        #         "category": user.category
+        #     })
 
 
         # EMAIL/PASSWORD LOGIN
@@ -244,12 +244,12 @@ class LoginView(APIView):
                 "status": "success",
                 "login_by": "email",
                 "token": token,
-                "plan_selection_needed":  has_active_plan,
-                "trial_expired": (
-                    "Your subscription has expired. Please renew your plan."
-                    if not has_active_plan
-                    else "Subscription active"
-                 ),
+                # "plan_selection_needed":  has_active_plan,
+                # "trial_expired": (
+                #     "Your subscription has expired. Please renew your plan."
+                #     if not has_active_plan
+                #     else "Subscription active"
+                #  ),
                 "category": user.category
             })
 
