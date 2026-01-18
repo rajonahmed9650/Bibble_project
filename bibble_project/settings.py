@@ -33,7 +33,6 @@ ALLOWED_HOSTS = [
     "localhost",
     "127.0.0.1",
     "23.26.207.33",
-
 ]
 
 
@@ -111,7 +110,8 @@ CSRF_COOKIE_SECURE = False
 SESSION_COOKIE_SAMESITE = "Lax"
 SESSION_COOKIE_SECURE = False
 
-SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
+USE_X_FORWARDED_HOST = True
+SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'http')
 
 ROOT_URLCONF = 'bibble_project.urls'
 
@@ -263,7 +263,9 @@ CORS_ALLOWED_ORIGINS = [
 CORS_ALLOW_CREDENTIALS = True
 
 CSRF_TRUSTED_ORIGINS = [
-    "https://test3.fireai.agency",
+    "http://apps.biblejourney.pro",
+    "https://apps.biblejourney.pro",
+    "http://23.26.207.33",
     "http://23.26.207.33:8000",
 ]
 
