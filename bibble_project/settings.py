@@ -28,9 +28,8 @@ SECRET_KEY = 'django-insecure-^_ew)$#_y+o_i6cx@_=tqc&2_r=s*z%=du3w@f65eyl@95%=4b
 DEBUG = False
 
 ALLOWED_HOSTS = [
-    # "test3.fireai.agency",
-    # "127.0.0.1",
-    # "localhost",
+    "apps.biblejourney.pro",
+    "www.apps.biblejourney.pro",
     "localhost",
     "127.0.0.1",
     "23.26.207.33",
