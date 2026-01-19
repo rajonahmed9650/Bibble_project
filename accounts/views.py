@@ -397,7 +397,7 @@ class CategorizeView(APIView):
 
         # 🔹 External categorization
         response = requests.post(
-            "http://23.26.207.33:8001/api/categorize/",
+            "https://ai.biblejourney.pro/api/categorize/",
             json={"qa_pairs": qa_pairs},
             timeout=10
         )
