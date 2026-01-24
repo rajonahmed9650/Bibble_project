@@ -452,25 +452,25 @@ class CompleteDayItemView(APIView):
         # =================================================
         #  SEQUENCE ENFORCEMENT (MAIN LOGIC)
         # =================================================
-        step_index = STEP_SEQUENCE.index(item_type)
+        # step_index = STEP_SEQUENCE.index(item_type)
 
-        if step_index > 0:
-            previous_step = STEP_SEQUENCE[step_index - 1]
+        # if step_index > 0:
+        #     previous_step = STEP_SEQUENCE[step_index - 1]
 
-            prev_completed = UserDayItemProgress.objects.filter(
-                user=user,
-                day=day,
-                item_type=previous_step,
-                completed=True
-            ).exists()
+        #     prev_completed = UserDayItemProgress.objects.filter(
+        #         user=user,
+        #         day=day,
+        #         item_type=previous_step,
+        #         completed=True
+        #     ).exists()
 
-            if not prev_completed:
-                return Response(
-                    {
-                        "error": f"You must complete '{previous_step}' first"
-                    },
-                    status=400
-                )
+        #     if not prev_completed:
+        #         return Response(
+        #             {
+        #                 "error": f"You must complete '{previous_step}' first"
+        #             },
+        #             status=400
+        #         )
 
         # -------------------------
         # 5 Create / Update step progress
