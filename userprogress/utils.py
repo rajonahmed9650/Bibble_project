@@ -2,7 +2,7 @@ from django.utils import timezone
 from datetime import timedelta
 from userprogress.models import UserDayProgress
 
-DAY_UNLOCK_DELAY = timedelta(minutes=1)  
+DAY_UNLOCK_DELAY = timedelta(days=1)  
 
 def get_current_day(user, journey):
     
