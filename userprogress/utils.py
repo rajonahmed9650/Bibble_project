@@ -2,31 +2,29 @@ from django.utils import timezone
 from datetime import timedelta
 from userprogress.models import UserDayProgress
 
-DAY_UNLOCK_DELAY = timedelta(days=1)
+DAY_UNLOCK_DELAY = timedelta(minutes=1)  
 
 def get_current_day(user, journey):
-
+    
     current_dp = UserDayProgress.objects.filter(
         user=user,
         day_id__journey_id=journey,
         status="current"
     ).select_related("day_id").first()
 
-  
     if current_dp:
+        return current_dp.day_id
 
-      
-        if not current_dp.completed_at:
-            return current_dp.day_id
+    last_completed = UserDayProgress.objects.filter(
+        user=user,
+        day_id__journey_id=journey,
+        status="completed"
+    ).order_by("-completed_at").first()
 
-        if timezone.now() - current_dp.completed_at < DAY_UNLOCK_DELAY:
-            return current_dp.day_id
+    if not last_completed:
+        return None
 
-   
-        current_dp.status = "completed"
-        current_dp.save()
-
- 
+    if last_completed.completed_at <= timezone.now() - DAY_UNLOCK_DELAY:
         next_locked = UserDayProgress.objects.filter(
             user=user,
             day_id__journey_id=journey,
@@ -38,7 +36,5 @@ def get_current_day(user, journey):
             next_locked.save()
             return next_locked.day_id
 
-        return None
-
-    
-    return None
+    # ✅ important line
+    return last_completed.day_id

@@ -79,17 +79,19 @@ class TodayStepView(APIView):
 
             journey = journey_progress.journey
 
+            # 🔥 NEW LOGIC HERE
+            day = get_current_day(user, journey)
+
+            if not day:
+                return Response({"error": "No accessible day"}, status=400)
+
             current_dp = UserDayProgress.objects.filter(
                 user=user,
-                status="current",
-                day_id__journey_id=journey
-            ).select_related("day_id").first()
+                day_id=day
+            ).first()
 
             if not current_dp:
-                return Response({"error": "No current day"}, status=400)
-
-            day = current_dp.day_id
-
+                return Response({"error": "Day progress not found"}, status=400)
         # ----------------------------------
         # STEP PROGRESS
         # ----------------------------------
@@ -253,7 +255,7 @@ class CompleteDayView(APIView):
         # ⏱ testing rule
         if UserDayProgress.objects.filter(
             user=user,
-            completed_at__gte=now - timedelta(days=1)
+            completed_at__gte=now - timedelta(minutes=1)
         ).exists():
             return Response({"error": "Wait 1 days"}, status=400)
 
@@ -321,7 +323,7 @@ class CompleteDayView(APIView):
                 )
 
         # ✅ complete day
-        # current_dp.status = "completed"
+        current_dp.status = "completed"
         current_dp.completed_at = now
         current_dp.save()
 
