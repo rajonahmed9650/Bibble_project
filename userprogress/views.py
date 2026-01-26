@@ -253,7 +253,7 @@ class CompleteDayView(APIView):
         # ⏱ testing rule
         if UserDayProgress.objects.filter(
             user=user,
-            completed_at__gte=now - timedelta(days = 1)
+            completed_at__gte=now - timedelta(days=1)
         ).exists():
             return Response({"error": "Wait 1 days"}, status=400)
 
@@ -321,7 +321,7 @@ class CompleteDayView(APIView):
                 )
 
         # ✅ complete day
-        current_dp.status = "completed"
+        # current_dp.status = "completed"
         current_dp.completed_at = now
         current_dp.save()
 
