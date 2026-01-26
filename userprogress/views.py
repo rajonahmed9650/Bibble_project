@@ -291,9 +291,15 @@ class CompleteDayView(APIView):
             completed=True
         ).values_list("item_type", flat=True)
 
-        if not set(REQUIRED).issubset(set(completed)):
+
+        pending_items = [item for item in REQUIRED if item not in completed]
+
+        if pending_items:
+            readable_items = ", ".join(item.capitalize() for item in pending_items)
             return Response(
-                {"error": "Complete all steps first"},
+                {
+                    "error": f"You haven't completed {readable_items} yet"
+                },
                 status=400
             )
 
