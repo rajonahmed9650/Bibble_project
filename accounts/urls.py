@@ -9,7 +9,8 @@ from .views import (
     LogoutView,
     ProfileView,
     CategorizeView,
-    DisableAccountView
+    DisableAccountView,
+    DeleteAccountView
     )
 
 
@@ -24,5 +25,5 @@ urlpatterns = [
    path("profile/", ProfileView.as_view(), name="profile"),
    path("user/categorize/",CategorizeView.as_view(),name="category"),
    path("account/disable/", DisableAccountView.as_view()),
-
+   path("account/delete/", DeleteAccountView.as_view()),
 ]

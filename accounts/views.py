@@ -379,6 +379,8 @@ from journey.models import PersonaJourney, Journey, Days
 from userprogress.models import UserJourneyProgress, UserDayProgress
 
 from django.db import transaction
+import os
+import requests
 
 
 class CategorizeView(APIView):
@@ -394,7 +396,6 @@ class CategorizeView(APIView):
 
         if user.category:
             return Response({"message": "Category already assigned"}, status=200)
-
         # 🔹 External categorization
         response = requests.post(
             "https://ai.biblejourney.pro/api/categorize/",
@@ -488,3 +489,27 @@ class DisableAccountView(APIView):
             status=status.HTTP_200_OK
         )
 
+
+class DeleteAccountView(APIView):
+    permission_classes =[IsAuthenticated]
+
+    def delete(self,request):
+        
+        confirm = request.data.get('delete')
+
+        if confirm is not True:
+            return Response({
+                    "success": False,
+                    "message": "Please confirm account deletion"
+                },
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        user = request.user
+
+        user.delete()
+
+        return Response({
+            "success":True,
+            "message":"User account deleted succefully"
+        })
