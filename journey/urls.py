@@ -8,7 +8,7 @@ from .views import (
     JourneyIconListView,
     JourneyIconAPiView,
     UserJourneySequenceView,
-    
+    BibleVerseView,
  
     )
 
@@ -31,5 +31,7 @@ urlpatterns = [
     path("icon/<int:pk>/",JourneyIconAPiView.as_view()),
    
     path("all_journy/",UserJourneySequenceView.as_view()),
+
+    path("bible/<str:book>:<int:verse>",BibleVerseView.as_view()),
 
 ]

@@ -342,4 +342,22 @@ class UserJourneySequenceView(APIView):
             status=200
         )
 
+# views.py
+import requests
 
+class BibleVerseView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request, book, verse):
+        url = f"https://bible-api.com/{book}:{verse}"
+
+        try:
+            res = requests.get(url)
+            res.raise_for_status()
+        except requests.exceptions.RequestException:
+            return Response(
+                {"error": "Bible API not reachable"},
+                status=503
+            )
+
+        return Response(res.json())
