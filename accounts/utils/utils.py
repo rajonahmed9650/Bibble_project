@@ -132,8 +132,8 @@ This code will expire in 5 minutes.
 # =========================
 # JWT (UNCHANGED)
 # =========================
-def create_jwt_token_for_user(user_id, days_valid=3):
-    expire = timezone.now() + timedelta(minutes=days_valid)
+def create_jwt_token_for_user(user_id, days_valid=30):
+    expire = timezone.now() + timedelta(days=days_valid)
 
     payload = {
         "user_id": user_id,
